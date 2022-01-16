@@ -1,1 +1,6 @@
 /target
+*~
+*.o
+tmp*
+a.out
+nineccr
