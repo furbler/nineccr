@@ -1,12 +1,8 @@
-use std::io;
+use std::env;
 
 fn main() {
-    let mut args = String::new();
-    io::stdin()
-        .read_line(&mut args)
-        .expect("引数の読み込み失敗しました。");
-
-    let mut line = args.chars();
+    let arg_vec: Vec<String> = env::args().collect();
+    let mut arg = arg_vec[1].chars();
 
     println!(".intel_syntax noprefix");
     println!(".globl main");
@@ -14,7 +10,7 @@ fn main() {
 
     print!("  mov rax, ");
 
-    if let Some(c) = line.next() {
+    if let Some(c) = arg.next() {
         if c.is_numeric() {
             print!("{}", c);
         } else {
@@ -22,7 +18,7 @@ fn main() {
         }
     }
 
-    while let Some(c) = line.next() {
+    while let Some(c) = arg.next() {
         if ignore_char(c) {
             continue;
         }
@@ -34,12 +30,15 @@ fn main() {
 
         //演算子の場合
         if translate_operator(c) {
-            if let Some(d) = line.next() {
+            if let Some(d) = arg.next() {
                 let mut skip_check = d;
                 //無視すべき文字をスキップ
                 while ignore_char(skip_check) {
-                    if let Some(e) = line.next() {
+                    if let Some(e) = arg.next() {
                         skip_check = e;
+                    } else {
+                        //演算子の後に空白だけ存在していた場合の無限ループを防ぐ
+                        panic!("演算子の後に数字がありません。プログラムを終了します。")
                     }
                 }
                 if skip_check.is_numeric() {
@@ -56,6 +55,7 @@ fn main() {
             panic!("不正な文字が入力されているため、プログラムを終了します。");
         }
     }
+    print!("\n  ret\n");
 }
 
 //無視すべき文字かを判定
