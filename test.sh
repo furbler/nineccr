@@ -20,7 +20,8 @@ assert 0 0
 assert 42 42
 assert 14 "7+12-5"
 assert 41 " 12    + 34 -     5   "
-#失敗するはず
-assert 21 "5+ 20 -  "
+#これは失敗するはず
+#assert 21 "5+ 20 -  "
+#assert 21 " + 20 -  3"
 
 echo OK

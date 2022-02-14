@@ -1,19 +1,27 @@
 use std::env;
 use std::str;
 
-//トークンの種類と値
-enum Kind {
-    //数値はそのまま出力するだけなのでchar型とする
-    Number(Vec<char>),
-    Operator(char),
-}
 //トークン列を保存
 struct List {
-    root: Option<Box<Token>>,
+    //トークン列の中で処理中のトークン
+    proccesing_token: Option<Box<Token>>,
 }
 struct Token {
     kind: Kind,
     next: Option<Box<Token>>,
+}
+//トークンとノードの種類
+enum Kind {
+    Add,
+    Sub,
+    //数値はそのまま出力するだけなのでchar型とする
+    Num(Vec<char>),
+}
+//構文木を構成するノード
+struct Node {
+    kind: Kind,
+    lhs: Option<Box<Node>>,
+    rhs: Option<Box<Node>>,
 }
 
 impl List {
@@ -27,7 +35,7 @@ impl List {
                 token
             }
         }
-        let token = findlast(&mut self.root);
+        let token = findlast(&mut self.proccesing_token);
         *token = Some(Box::new(Token {
             kind: value,
             next: None,
@@ -58,7 +66,7 @@ impl List {
                 //連続した数字をVecにまとめ、その次の記号も出す
                 let (c_return, numbers) = continue_num(c, arg);
                 //数字のトークンを作成
-                self.push_back(Kind::Number(numbers));
+                self.push_back(Kind::Num(numbers));
                 //処理すべき記号を更新
                 if let Some(d) = c_return {
                     c = d;
@@ -69,7 +77,8 @@ impl List {
             }
             //記号の処理
             match c {
-                '+' | '-' => self.push_back(Kind::Operator(c)),
+                '+' => self.push_back(Kind::Add),
+                '-' => self.push_back(Kind::Sub),
                 //空白はスキップ
                 c if c.is_whitespace() => (),
                 _ => panic!(
@@ -79,70 +88,127 @@ impl List {
             }
         }
     }
+
+    //現在のトークンが数値であれば対応したノードを生成して返す
+    //トークンが数値以外または存在しない場合はpanicさせる
+    fn expect_num(&mut self) -> Node {
+        if let Some(token) = &self.proccesing_token {
+            if let Kind::Num(numbers) = &token.kind {
+                Node {
+                    //proccesing_tokenから所有権を移動させないためにcloneを使う
+                    kind: Kind::Num(numbers.clone()),
+                    lhs: None,
+                    rhs: None,
+                }
+            } else {
+                panic!("演算子の後に数字以外が存在しています。プログラムを終了します。");
+            }
+        } else {
+            panic!("入力の末尾に数値がありません。プログラムを終了します。");
+        }
+    }
 }
 
 fn main() {
+    //引数を入力文字列として格納
     let arg_vec: Vec<String> = env::args().collect();
     let mut arg = arg_vec[1].chars();
 
-    let mut list = List { root: None };
+    let mut list = List {
+        proccesing_token: None,
+    };
     //引数の文字列をトークナイズする
     list.tokenize(&mut arg);
-    //着目しているトークン
-    let mut token: Token;
-    if let Some(first_token) = list.root {
-        token = *first_token;
-    } else {
-        panic!("何も入力がされていないため、プログラムを終了します。");
-    }
+
+    let node = expr(list);
 
     println!(".intel_syntax noprefix");
     println!(".globl main");
     println!("main:");
 
-    //最初が数字であるか確認
-    if let Kind::Number(numbers) = token.kind {
-        print!("  mov rax, ");
-        for number in numbers {
-            print!("{}", number);
-        }
-        //改行を入れる
-        print!("\n");
-    } else {
-        panic!("最初の文字が数字ではありません。プログラムを終了します。");
-    }
+    generate(node);
 
+    //結果の値はスタックの一番上に置かれるので、その値をraxレジスタに置く
+    println!("  pop rax");
+    println!("  ret");
+}
+
+// expr = num ("+" num | "-" num)*
+fn expr(mut list: List) -> Option<Box<Node>> {
+    //num
+    let mut node = list.expect_num();
+    //トークンの数値を読み取ったらトークンを進める
+    list.proccesing_token = next_token(list.proccesing_token);
+    //("+" num | "-" num)*
     loop {
-        if let Some(cur_token) = token.next {
-            //演算子の処理
-            if let Kind::Operator(c) = cur_token.kind {
-                match c {
-                    '+' => print!("  add rax, "),
-                    '-' => print!("  sub rax, "),
-                    _ => (), //トークナイズの段階で弾いているはず
+        if let Some(token) = &list.proccesing_token {
+            match token.kind {
+                Kind::Add => {
+                    //トークンを進める
+                    list.proccesing_token = next_token(list.proccesing_token);
+                    node = Node {
+                        kind: Kind::Add,
+                        lhs: Some(Box::new(node)),
+                        rhs: Some(Box::new(list.expect_num())),
+                    }
                 }
+                Kind::Sub => {
+                    //トークンを進める
+                    list.proccesing_token = next_token(list.proccesing_token);
+                    node = Node {
+                        kind: Kind::Sub,
+                        lhs: Some(Box::new(node)),
+                        rhs: Some(Box::new(list.expect_num())),
+                    }
+                }
+                _ => panic!("演算子の後に数字以外が存在しています。プログラムを終了します。"),
             }
-            token = *cur_token;
         } else {
-            //入力の最後が数字なので正常終了
+            //入力の末尾として正常終了
             break;
         }
-        if let Some(cur_token) = token.next {
-            //数字の処理
-            if let Kind::Number(ref numbers) = cur_token.kind {
-                for number in numbers {
-                    print!("{}", number);
-                }
-                //改行を入れる
-                print!("\n");
-            } else {
-                panic!("演算子の後に数字以外が存在しています。プログラムを終了します。");
+        //トークンを進める
+        list.proccesing_token = next_token(list.proccesing_token);
+    }
+    Some(Box::new(node))
+}
+
+//構文木からコードを生成
+fn generate(arg_node: Option<Box<Node>>) {
+    if let Some(node) = arg_node {
+        if let Kind::Num(numbers) = node.kind {
+            print!("  push ");
+            //数値を出力
+            for number in numbers {
+                print!("{}", number);
             }
-            token = *cur_token;
+            print!("\n");
+            //構文木の末尾のノードなので関数終了
+            return;
         } else {
-            panic!("入力の最後に演算子があります。プログラムを終了します。");
+            //ノードが演算子だった場合
+            generate(node.lhs);
+            generate(node.rhs);
+
+            println!("  pop rdi");
+            println!("  pop rax");
+            match node.kind {
+                Kind::Add => println!("  add rax, rdi"),
+                Kind::Sub => println!("  sub rax, rdi"),
+                //この状況はトークン生成時に弾いているはず
+                _ => (),
+            }
+            println!("  push rax");
         }
     }
+    //引数がNoneの場合は何もしない
+}
 
-    println!("\n  ret");
+//次のトークンを返す
+fn next_token(token: Option<Box<Token>>) -> Option<Box<Token>> {
+    if let Some(now_token) = token {
+        now_token.next
+    } else {
+        None
+    }
 }
