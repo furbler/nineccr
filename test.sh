@@ -20,8 +20,9 @@ assert 0 0
 assert 42 42
 assert 14 "7+12-5"
 assert 41 " 12    + 34 -     5   "
-#これは失敗するはず
-#assert 21 "5+ 20 -  "
-#assert 21 " + 20 -  3"
+assert 41 " 12    + 34 -     5   "
+assert 47 '5+6*7'
+assert 39 '5*  9- 6'
+assert 17 ' 3*5 + 4 / 2'
 
 echo OK
