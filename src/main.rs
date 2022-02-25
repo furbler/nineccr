@@ -88,7 +88,7 @@ fn expect_num(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
             progress + 1,
         )
     } else {
-        panic!("演算子の後に数字以外が存在しています。プログラムを終了します。");
+        panic!("数字があるべき箇所に演算子があります。プログラムを終了します。");
     }
 }
 
@@ -125,15 +125,15 @@ fn expr(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     (node, progress)
 }
 
-//mul  = primary ("*" primary | "/" primary)*
+//mul  = unary ("*" unary | "/" unary)*
 fn mul(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     //num
-    let (mut node, mut progress) = primary(tokens, progress);
+    let (mut node, mut progress) = unary(tokens, progress);
     //("*" num | "/" num)*
     while progress < tokens.len() {
         match tokens[progress] {
             Kind::Mul => {
-                let (ret_node, ret_progress) = primary(tokens, progress + 1);
+                let (ret_node, ret_progress) = unary(tokens, progress + 1);
                 node = Node {
                     kind: Kind::Mul,
                     lhs: Some(Box::new(node)),
@@ -143,7 +143,7 @@ fn mul(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
                 progress = ret_progress;
             }
             Kind::Div => {
-                let (ret_node, ret_progress) = primary(tokens, progress + 1);
+                let (ret_node, ret_progress) = unary(tokens, progress + 1);
                 node = Node {
                     kind: Kind::Div,
                     lhs: Some(Box::new(node)),
@@ -156,6 +156,31 @@ fn mul(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
         }
     }
     (node, progress)
+}
+
+//unary   = ("+" | "-")? primary
+fn unary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
+    match tokens[progress] {
+        Kind::Add => primary(tokens, progress + 1),
+        Kind::Sub => {
+            let (ret_node, ret_progress) = primary(tokens, progress + 1);
+
+            let zero_node = Node {
+                kind: Kind::Num(vec!['0']),
+                lhs: None,
+                rhs: None,
+            };
+            (
+                Node {
+                    kind: Kind::Sub,
+                    lhs: Some(Box::new(zero_node)),
+                    rhs: Some(Box::new(ret_node)),
+                },
+                ret_progress,
+            )
+        }
+        _ => primary(tokens, progress),
+    }
 }
 
 //primary = num | "(" expr ")"
