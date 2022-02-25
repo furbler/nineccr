@@ -7,6 +7,8 @@ enum Kind {
     Sub,
     Mul,
     Div,
+    BracOpen,  //開き括弧
+    BracClose, //閉じ括弧
     //数値はそのまま出力するだけなのでchar型とする
     Num(Vec<char>),
 }
@@ -59,6 +61,8 @@ fn tokenize(arg: &mut str::Chars) -> Vec<Kind> {
             '-' => tokens.push(Kind::Sub),
             '*' => tokens.push(Kind::Mul),
             '/' => tokens.push(Kind::Div),
+            '(' => tokens.push(Kind::BracOpen),
+            ')' => tokens.push(Kind::BracClose),
             //空白はスキップ
             c if c.is_whitespace() => (),
             _ => panic!(
@@ -121,15 +125,15 @@ fn expr(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     (node, progress)
 }
 
-//mul  = num ("*" num | "/" num)*
+//mul  = primary ("*" primary | "/" primary)*
 fn mul(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     //num
-    let (mut node, mut progress) = expect_num(tokens, progress);
+    let (mut node, mut progress) = primary(tokens, progress);
     //("*" num | "/" num)*
     while progress < tokens.len() {
         match tokens[progress] {
             Kind::Mul => {
-                let (ret_node, ret_progress) = expect_num(tokens, progress + 1);
+                let (ret_node, ret_progress) = primary(tokens, progress + 1);
                 node = Node {
                     kind: Kind::Mul,
                     lhs: Some(Box::new(node)),
@@ -139,7 +143,7 @@ fn mul(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
                 progress = ret_progress;
             }
             Kind::Div => {
-                let (ret_node, ret_progress) = expect_num(tokens, progress + 1);
+                let (ret_node, ret_progress) = primary(tokens, progress + 1);
                 node = Node {
                     kind: Kind::Div,
                     lhs: Some(Box::new(node)),
@@ -152,6 +156,22 @@ fn mul(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
         }
     }
     (node, progress)
+}
+
+//primary = num | "(" expr ")"
+fn primary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
+    if let Kind::BracOpen = tokens[progress] {
+        //"(" expr ")"
+        let (node, progress) = expr(tokens, progress + 1);
+        if let Kind::BracClose = tokens[progress] {
+            (node, progress + 1)
+        } else {
+            panic!("括弧が閉じていません。プログラムを終了します。");
+        }
+    } else {
+        //num
+        expect_num(tokens, progress)
+    }
 }
 
 //構文木からコードを生成
