@@ -1,5 +1,5 @@
 use std::env;
-use std::str::Chars;
+use std::str;
 
 //トークンとノードの種類
 enum Kind {
@@ -26,9 +26,9 @@ struct Node {
 }
 
 // 入力文字列argをトークナイズする
-fn tokenize(arg: &mut Chars) -> Vec<Kind> {
+fn tokenize(arg: &mut str::Chars) -> Vec<Kind> {
     //連続した数字をベクタ型にまとめて返す
-    fn continue_num(first_c: char, c_iter: &mut Chars) -> (Option<char>, Vec<char>) {
+    fn continue_num(first_c: char, c_iter: &mut str::Chars) -> (Option<char>, Vec<char>) {
         let mut c_vec = vec![first_c];
         let mut ret_char: Option<char> = None;
         //数字以外の文字が出るまでループ
