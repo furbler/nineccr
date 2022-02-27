@@ -1,5 +1,5 @@
 use std::env;
-use std::str;
+use std::str::Chars;
 
 //トークンとノードの種類
 enum Kind {
@@ -9,6 +9,12 @@ enum Kind {
     Div,
     BracOpen,  //開き括弧
     BracClose, //閉じ括弧
+    Equal,     // ==
+    NoEqual,   // !=
+    LowThan,   // <
+    LowEqual,  // <=
+    HighThan,  // >
+    HighEqual, // >=
     //数値はそのまま出力するだけなのでchar型とする
     Num(Vec<char>),
 }
@@ -20,11 +26,11 @@ struct Node {
 }
 
 // 入力文字列argをトークナイズする
-fn tokenize(arg: &mut str::Chars) -> Vec<Kind> {
+fn tokenize(arg: &mut Chars) -> Vec<Kind> {
     //連続した数字をベクタ型にまとめて返す
-    //その次の数字以外の文字も一緒に返す
-    fn continue_num(first_c: char, c_iter: &mut str::Chars) -> (Option<char>, Vec<char>) {
+    fn continue_num(first_c: char, c_iter: &mut Chars) -> (Option<char>, Vec<char>) {
         let mut c_vec = vec![first_c];
+        let mut ret_char: Option<char> = None;
         //数字以外の文字が出るまでループ
         while let Some(c) = c_iter.next() {
             if c.is_numeric() {
@@ -32,30 +38,13 @@ fn tokenize(arg: &mut str::Chars) -> Vec<Kind> {
                 c_vec.push(c);
             } else {
                 //数字以外が見つかったら終了
-                return (Some(c), c_vec);
+                ret_char = Some(c);
+                break;
             }
         }
-        //入力文字列が終わった場合
-        (None, c_vec)
+        (ret_char, c_vec)
     }
-    //トークン列
-    let mut tokens = Vec::new();
-    while let Some(mut c) = arg.next() {
-        //数字の場合
-        if c.is_numeric() {
-            //連続した数字をVecにまとめ、その次の記号も出す
-            let (c_return, numbers) = continue_num(c, arg);
-            //数字のトークンを追加
-            tokens.push(Kind::Num(numbers));
-            //処理すべき記号を更新
-            if let Some(d) = c_return {
-                c = d;
-            } else {
-                //前の数字で入力文字列が終わっていたら関数終了
-                return tokens;
-            }
-        }
-        //記号の処理
+    fn push_token(c: char, mut tokens: Vec<Kind>) -> Vec<Kind> {
         match c {
             '+' => tokens.push(Kind::Add),
             '-' => tokens.push(Kind::Sub),
@@ -64,11 +53,100 @@ fn tokenize(arg: &mut str::Chars) -> Vec<Kind> {
             '(' => tokens.push(Kind::BracOpen),
             ')' => tokens.push(Kind::BracClose),
             //空白はスキップ
-            c if c.is_whitespace() => (),
+            ' ' => (),
             _ => panic!(
                 "不正な文字\"{}\"が存在するため、プログラムを終了します。",
                 c
             ),
+        }
+        tokens
+    }
+
+    //トークン列
+    let mut tokens = Vec::new();
+    //イテレータで取り出されて未処理の文字
+    let mut popped_char: Option<char> = None;
+    while let Some(c) = {
+        //popped_charに値があればその値を、無ければイテレータから値を取り出す
+        if let None = popped_char {
+            arg.next()
+        } else {
+            popped_char
+        }
+    } {
+        //値をリセット
+        popped_char = None;
+        //記号の処理
+        match c {
+            '=' => {
+                if let Some(next_c) = arg.next() {
+                    if '=' == next_c {
+                        tokens.push(Kind::Equal);
+                    } else {
+                        panic!("=単体の演算子は不正です。プログラムを終了します。");
+                    }
+                }
+            }
+            '!' => {
+                if let Some(next_c) = arg.next() {
+                    if '=' == next_c {
+                        tokens.push(Kind::NoEqual);
+                    } else {
+                        panic!("!単体の演算子は不正です。プログラムを終了します。");
+                    }
+                }
+            }
+            '<' => {
+                if let Some(next_c) = arg.next() {
+                    match next_c {
+                        // <=
+                        '=' => tokens.push(Kind::LowEqual),
+                        d if d.is_numeric() => {
+                            // <
+                            tokens.push(Kind::LowThan);
+
+                            //連続した数字をVecにまとめ、数字のトークンを追加
+                            let (ret_char, ret_numbers) = continue_num(d, arg);
+                            tokens.push(Kind::Num(ret_numbers));
+                            popped_char = ret_char;
+                        }
+                        _ => {
+                            // <
+                            tokens.push(Kind::LowThan);
+                            tokens = push_token(next_c, tokens)
+                        }
+                    }
+                }
+            }
+            '>' => {
+                if let Some(next_c) = arg.next() {
+                    match next_c {
+                        // >=
+                        '=' => tokens.push(Kind::HighEqual),
+                        d if d.is_numeric() => {
+                            // >
+                            tokens.push(Kind::HighThan);
+                            //連続した数字をVecにまとめ、数字のトークンを追加
+                            let (ret_char, ret_numbers) = continue_num(d, arg);
+                            tokens.push(Kind::Num(ret_numbers));
+                            popped_char = ret_char;
+                        }
+                        _ => {
+                            // >
+                            tokens.push(Kind::HighThan);
+                            tokens = push_token(next_c, tokens)
+                        }
+                    }
+                }
+            }
+            //数字の場合
+            d if d.is_numeric() => {
+                //連続した数字をVecにまとめ、数字のトークンを追加
+                let (ret_char, ret_numbers) = continue_num(d, arg);
+                tokens.push(Kind::Num(ret_numbers));
+                popped_char = ret_char;
+            }
+            _ => tokens = push_token(c, tokens),
         }
     }
     tokens
@@ -92,8 +170,101 @@ fn expect_num(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     }
 }
 
-// expr = mul ("+" mul | "-" mul)*
+// expr = equality
 fn expr(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
+    equality(tokens, progress)
+}
+
+// equality = relational ("==" relational | "!=" relational)*
+fn equality(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
+    //relational
+    let (mut node, mut progress) = relational(tokens, progress);
+    //("==" relational | "!=" relational)*
+    while progress < tokens.len() {
+        match tokens[progress] {
+            Kind::Equal => {
+                let (ret_node, ret_progress) = relational(tokens, progress + 1);
+                node = Node {
+                    kind: Kind::Equal,
+                    lhs: Some(Box::new(node)),
+                    rhs: Some(Box::new(ret_node)),
+                };
+                //トークンを進める
+                progress = ret_progress;
+            }
+            Kind::NoEqual => {
+                let (ret_node, ret_progress) = relational(tokens, progress + 1);
+                node = Node {
+                    kind: Kind::NoEqual,
+                    lhs: Some(Box::new(node)),
+                    rhs: Some(Box::new(ret_node)),
+                };
+                //トークンを進める
+                progress = ret_progress;
+            }
+            _ => return (node, progress),
+        }
+    }
+    (node, progress)
+}
+
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+fn relational(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
+    //add
+    let (mut node, mut progress) = add(tokens, progress);
+    //("==" relational | "!=" relational)*
+    while progress < tokens.len() {
+        match tokens[progress] {
+            Kind::LowThan => {
+                let (ret_node, ret_progress) = add(tokens, progress + 1);
+                node = Node {
+                    kind: Kind::LowThan,
+                    lhs: Some(Box::new(node)),
+                    rhs: Some(Box::new(ret_node)),
+                };
+                //トークンを進める
+                progress = ret_progress;
+            }
+            Kind::LowEqual => {
+                let (ret_node, ret_progress) = add(tokens, progress + 1);
+                node = Node {
+                    kind: Kind::LowEqual,
+                    lhs: Some(Box::new(node)),
+                    rhs: Some(Box::new(ret_node)),
+                };
+                //トークンを進める
+                progress = ret_progress;
+            }
+            Kind::HighThan => {
+                let (ret_node, ret_progress) = add(tokens, progress + 1);
+                node = Node {
+                    //ノードの左右を入れ替えて小なりに統一する
+                    kind: Kind::LowThan,
+                    lhs: Some(Box::new(ret_node)),
+                    rhs: Some(Box::new(node)),
+                };
+                //トークンを進める
+                progress = ret_progress;
+            }
+            Kind::HighEqual => {
+                let (ret_node, ret_progress) = add(tokens, progress + 1);
+                node = Node {
+                    //ノードの左右を入れ替えて小なりに統一する
+                    kind: Kind::LowEqual,
+                    lhs: Some(Box::new(ret_node)),
+                    rhs: Some(Box::new(node)),
+                };
+                //トークンを進める
+                progress = ret_progress;
+            }
+            _ => return (node, progress),
+        }
+    }
+    (node, progress)
+}
+
+// add = mul ("+" mul | "-" mul)*
+fn add(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     //mul
     let (mut node, mut progress) = mul(tokens, progress);
     //("+" mul | "-" mul)*
@@ -226,8 +397,27 @@ fn generate(arg_node: Option<Box<Node>>) {
                     println!("  cqo");
                     println!("  idiv rdi");
                 }
-                //この状況はトークン生成時に弾いているはず
-                _ => (),
+                Kind::Equal => {
+                    println!("  cmp rax, rdi");
+                    println!("  sete al");
+                    println!("  movzb rax, al");
+                }
+                Kind::NoEqual => {
+                    println!("  cmp rax, rdi");
+                    println!("  setne al");
+                    println!("  movzb rax, al");
+                }
+                Kind::LowThan => {
+                    println!("  cmp rax, rdi");
+                    println!("  setl al");
+                    println!("  movzb rax, al");
+                }
+                Kind::LowEqual => {
+                    println!("  cmp rax, rdi");
+                    println!("  setle al");
+                    println!("  movzb rax, al");
+                }
+                _ => panic!("不正なノードがあります。プログラムを終了します。"),
             }
             println!("  push rax");
         }
