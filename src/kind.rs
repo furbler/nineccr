@@ -12,6 +12,9 @@ pub enum Kind {
     LowEqual,  // <=
     HighThan,  // >
     HighEqual, // >=
+    Semicolon, // ;
+    Assign,    // = 代入演算子
+    Var(i32),  // 一文字の変数(中にRBPからのオフセット値を格納)
     //数値はそのまま出力するだけなのでchar型とする
     Num(Vec<char>),
 }

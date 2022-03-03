@@ -3,12 +3,47 @@ use crate::kind::Node;
 
 //外部から呼び出される関数
 pub fn parse(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
-    expr(tokens, progress)
+    stmt(tokens, progress)
 }
 
-// expr = equality
+// stmt = expr ";"
+fn stmt(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
+    let (node, progress) = expr(tokens, progress);
+    if tokens.len() <= progress {
+        panic!("文の終わりに;が付いていません。プログラムを終了します。");
+    }
+    if let Kind::Semicolon = tokens[progress] {
+        (node, progress + 1)
+    } else {
+        panic!("文の終わりに;が付いていません。プログラムを終了します。");
+    }
+}
+
+// expr = assign
 fn expr(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
-    equality(tokens, progress)
+    assign(tokens, progress)
+}
+
+// assign = equality ("=" assign)?
+fn assign(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
+    let (node, progress) = equality(tokens, progress);
+    //代入演算子が無い場合
+    if tokens.len() <= progress {
+        return (node, progress);
+    }
+    if let Kind::Assign = tokens[progress] {
+        let (ret_node, ret_progress) = assign(tokens, progress + 1);
+        (
+            Node {
+                kind: Kind::Assign,
+                lhs: Some(Box::new(node)),
+                rhs: Some(Box::new(ret_node)),
+            },
+            ret_progress,
+        )
+    } else {
+        (node, progress)
+    }
 }
 
 // equality = relational ("==" relational | "!=" relational)*
@@ -190,19 +225,29 @@ fn unary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     }
 }
 
-//primary = num | "(" expr ")"
+// primary = "(" expr ")" | ident | num
 fn primary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
-    if let Kind::BracOpen = tokens[progress] {
-        //"(" expr ")"
-        let (node, progress) = expr(tokens, progress + 1);
-        if let Kind::BracClose = tokens[progress] {
-            (node, progress + 1)
-        } else {
-            panic!("括弧が閉じていません。プログラムを終了します。");
+    match tokens[progress] {
+        Kind::BracOpen => {
+            //"(" expr ")"
+            let (node, progress) = expr(tokens, progress + 1);
+            if let Kind::BracClose = tokens[progress] {
+                (node, progress + 1)
+            } else {
+                panic!("括弧が閉じていません。プログラムを終了します。");
+            }
         }
-    } else {
+        Kind::Var(var) => (
+            Node {
+                kind: Kind::Var(var),
+                lhs: None,
+                rhs: None,
+            },
+            progress + 1,
+        ),
         //num
-        expect_num(tokens, progress)
+        Kind::Num(_) => expect_num(tokens, progress),
+        _ => panic!("構文木の末端には変数か数値しか置けません。プログラムを終了します。"),
     }
 }
 

@@ -6,8 +6,10 @@ mod parse;
 mod tokenize;
 
 use crate::generate::generate;
+use crate::kind::Node;
 use crate::parse::parse;
 use crate::tokenize::tokenize;
+
 
 fn main() {
     //引数を入力文字列として格納
@@ -21,15 +23,38 @@ fn main() {
         panic!("入力がありません。プログラムを終了します。");
     }
     //トークン列から構文木を生成
-    let node = parse(&tokens, 0).0;
+    let mut progress = 0;
+    let mut nodes: Vec<Node> = Vec::new();
+    //文単位で保存
+    while progress < tokens.len() {
+        let (ret_node, ret_progress) = parse(&tokens, progress);
+        nodes.push(ret_node);
+        progress = ret_progress;
+    }
 
+    // アセンブリの前半部分を出力
     println!(".intel_syntax noprefix");
     println!(".globl main");
     println!("main:");
-    //構文木からアセンブリコードを生成
-    generate(Some(Box::new(node)));
 
-    //結果の値はスタックの一番上に置かれるので、その値をraxレジスタに置く
-    println!("  pop rax");
+    // プロローグ
+    // 変数26個分の領域を確保する
+    println!("  push rbp");
+    println!("  mov rbp, rsp");
+    println!("  sub rsp, 208");
+
+    //構文木からアセンブリコードを生成
+    for node in nodes {
+        //文単位で生成
+        generate(Some(Box::new(node)));
+        // 式の評価結果としてスタックに一つの値が残っている
+        // はずなので、スタックが溢れないようにポップしておく
+        println!("  pop rax");
+    }
+
+    // エピローグ
+    // 最後の式の結果がRAXに残っているのでそれが返り値になる
+    println!("  mov rsp, rbp");
+    println!("  pop rbp");
     println!("  ret");
 }
