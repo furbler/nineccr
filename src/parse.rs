@@ -237,9 +237,9 @@ fn primary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
                 panic!("括弧が閉じていません。プログラムを終了します。");
             }
         }
-        Kind::Var(var) => (
+        Kind::Var(index) => (
             Node {
-                kind: Kind::Var(var),
+                kind: Kind::Var(index),
                 lhs: None,
                 rhs: None,
             },

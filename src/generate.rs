@@ -15,9 +15,9 @@ pub fn generate(arg_node: Option<Box<Node>>) {
                 //構文木の末尾のノードなので関数終了
                 return;
             }
-            Kind::Var(offset) => {
+            Kind::Var(ident) => {
                 //指定された変数のアドレスをスタックにプッシュする
-                push_var_address(offset);
+                push_var_address(ident);
                 //変数の中身の値をスタックにプッシュする
                 println!("  pop rax");
                 println!("  mov rax, [rax]");
@@ -26,9 +26,9 @@ pub fn generate(arg_node: Option<Box<Node>>) {
                 return;
             }
             Kind::Assign => {
-                if let Kind::Var(offset) = (node.lhs).as_ref().unwrap().kind {
+                if let Kind::Var(ident) = (node.lhs).as_ref().unwrap().kind {
                     //指定された変数のアドレスをスタックにプッシュする
-                    push_var_address(offset);
+                    push_var_address(ident);
                     //右辺の値を計算
                     generate(node.rhs);
                     //変数に右辺の値を代入
@@ -87,8 +87,9 @@ pub fn generate(arg_node: Option<Box<Node>>) {
 }
 
 //指定された変数のアドレスをスタックにプッシュする
-fn push_var_address(offset: i32) {
+fn push_var_address(ident: usize) {
     println!("  mov rax, rbp");
-    println!("  sub rax, {}", offset);
+    //オフセット値には変数のサイズ(8byte)を考慮する
+    println!("  sub rax, {}", ident * 8);
     println!("  push rax");
 }

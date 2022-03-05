@@ -57,5 +57,9 @@ assert 8 'z=3; h=5; z+h;'
 assert 7 'b=3; h=5; p=1; i = 2; b+h+p-i;'
 assert 6 'b=3; h=5; p=2; i = b+h; i-p;'
 
+assert 3 'foo=3; foo;'
+assert 8 'foo123=3; bar=5; foo123+bar;'
+assert 2 'foo123=3; bar=5; bar_sub_foo = bar-foo123;'
+
 
 echo OK
