@@ -14,6 +14,7 @@ pub enum Kind {
     HighEqual, // >=
     Semicolon, // ;
     Assign,    // = 代入演算子
+    Return,    // return
     //変数の1文字目にはアルファベットまたはアンダーバーのみ可
     //2文字目以降はそれに加えて数字も可
     Var(usize), // 変数(識別番号)

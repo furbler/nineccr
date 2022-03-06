@@ -6,14 +6,28 @@ pub fn parse(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     stmt(tokens, progress)
 }
 
-// stmt = expr ";"
+// statement
+// stmt = expr ";" | "return" expr ";"
 fn stmt(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
-    let (node, progress) = expr(tokens, progress);
-    if tokens.len() <= progress {
+    let mut node;
+    let ret_progress;
+
+    if let Kind::Return = tokens[progress] {
+        (node, ret_progress) = expr(tokens, progress + 1);
+        node = Node {
+            kind: Kind::Return,
+            lhs: Some(Box::new(node)),
+            rhs: None,
+        };
+    } else {
+        (node, ret_progress) = expr(tokens, progress);
+    }
+
+    if tokens.len() <= ret_progress {
         panic!("文の終わりに;が付いていません。プログラムを終了します。");
     }
-    if let Kind::Semicolon = tokens[progress] {
-        (node, progress + 1)
+    if let Kind::Semicolon = tokens[ret_progress] {
+        (node, ret_progress + 1)
     } else {
         panic!("文の終わりに;が付いていません。プログラムを終了します。");
     }

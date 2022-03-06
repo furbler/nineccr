@@ -15,6 +15,15 @@ pub fn generate(arg_node: Option<Box<Node>>) {
                 //構文木の末尾のノードなので関数終了
                 return;
             }
+            Kind::Return => {
+                generate(node.lhs);
+                println!("  pop rax");
+                println!("  mov rsp, rbp");
+                println!("  pop rbp");
+                println!("  ret");
+                return;
+            }
+
             Kind::Var(ident) => {
                 //指定された変数のアドレスをスタックにプッシュする
                 push_var_address(ident);
@@ -42,7 +51,7 @@ pub fn generate(arg_node: Option<Box<Node>>) {
                     panic!("式の左辺に変数以外があります。プログラムを終了します。");
                 }
             }
-            //ノードが数値、変数、代入演算子以外の場合のみ以降の処理に進む
+            //ノードが数値、変数、代入演算子、識別子以外の場合のみ以降の処理に進む
             _ => (),
         }
         //ノードが演算子だった場合
