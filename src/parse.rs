@@ -2,8 +2,17 @@ use crate::kind::Kind;
 use crate::kind::Node;
 
 //外部から呼び出される関数
-pub fn parse(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
-    stmt(tokens, progress)
+pub fn program(tokens: &Vec<Kind>) -> Vec<Node> {
+    //トークン列から構文木を生成
+    let mut progress = 0;
+    let mut nodes: Vec<Node> = Vec::new();
+    //文単位で保存
+    while progress < tokens.len() {
+        let (ret_node, ret_progress) = stmt(&tokens, progress);
+        nodes.push(ret_node);
+        progress = ret_progress;
+    }
+    nodes
 }
 
 // statement
