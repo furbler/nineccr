@@ -53,7 +53,6 @@ assert 3 '1; 2; 3;'
 
 assert 3 'a=3;'
 assert 16 'a=7; i=9; a+i;'
-assert 8 'z=3; h=5; z+h;'
 assert 7 'b=3; h=5; p=1; i = 2; b+h+p-i;'
 assert 6 'b=3; h=5; p=2; i = b+h; i-p;'
 
@@ -71,6 +70,13 @@ assert 3 '1; 2; return 3;'
 assert 3 'foo=3; return foo;'
 assert 8 'foo123=3; bar=5; return foo123+bar;'
 assert 8 'foo_123=3; returnbar=5; return foo_123+returnbar;'
+assert 16 'ret=7; els3=9; ret+els3;'
+assert 16 'return5=7; ifa=9; return5+ifa;'
+
+assert 3 'if (0) return 2; return 3;'
+assert 3 'if (1-1) return 2; return 3;'
+assert 2 'if (1) return 2; return 3;'
+assert 2 'if (2-1) return 2; return 3;'
 
 
 echo OK

@@ -14,9 +14,12 @@ pub fn codegen(nodes: Vec<Node>) {
     println!("  mov rbp, rsp");
     println!("  sub rsp, 208"); // 8byte * 26
 
+    // ラベルに一意に付与する番号
+    let mut labelseq: usize = 0;
+
     for node in nodes {
         //文単位で生成
-        gen(Some(Box::new(node)));
+        labelseq = gen(Some(Box::new(node)), labelseq);
         // 式の評価結果としてスタックに一つの値が残っている
         // はずなので、スタックが溢れないようにポップしておく
         println!("  pop rax");
@@ -30,8 +33,7 @@ pub fn codegen(nodes: Vec<Node>) {
 }
 
 // 一文の処理
-// 引数はnodeのlhsとrhsと揃える
-fn gen(node: Option<Box<Node>>) {
+fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
     let node = *node.unwrap();
     match node.kind {
         Kind::Num(numbers) => {
@@ -42,17 +44,48 @@ fn gen(node: Option<Box<Node>>) {
             }
             print!("\n");
             //構文木の末尾のノードなので関数終了
-            return;
+            return labelseq;
         }
         Kind::Return => {
-            gen(node.lhs);
+            labelseq = gen(node.lhs, labelseq);
             println!("  pop rax");
             println!("  mov rsp, rbp");
             println!("  pop rbp");
             println!("  ret");
-            return;
+            return labelseq;
         }
-
+        Kind::If(node_cond) => {
+            // この関数内でのみ使うラベル番号(ラベル番号を使うすべてのgen関数のラベル番号に対して一意)
+            let seq = labelseq;
+            // ラベル番号更新
+            labelseq += 1;
+            if let Some(_) = node.rhs {
+                // else文がある場合
+                // 条件式
+                labelseq = gen(node_cond, labelseq);
+                println!("  pop rax");
+                println!("  cmp rax, 0");
+                println!("  je  .Lelse{}", seq);
+                // then式
+                labelseq = gen(node.lhs, labelseq);
+                println!("  jmp .Lend{}", seq);
+                println!(".Lelse{}:", seq);
+                // else式
+                labelseq = gen(node.rhs, labelseq);
+                println!(".Lend{}:", seq);
+            } else {
+                // else文がない場合(rhsがNoneの場合)
+                // 条件式
+                labelseq = gen(node_cond, labelseq);
+                println!("  pop rax");
+                println!("  cmp rax, 0");
+                println!("  je  .Lend{}", seq);
+                // then式
+                labelseq = gen(node.lhs, labelseq);
+                println!(".Lend{}:", seq);
+            }
+            return labelseq;
+        }
         Kind::Var(ident) => {
             //指定された変数のアドレスをスタックにプッシュする
             push_var_address(ident);
@@ -61,21 +94,21 @@ fn gen(node: Option<Box<Node>>) {
             println!("  mov rax, [rax]");
             println!("  push rax");
             //構文木の末尾のノードなので関数終了
-            return;
+            return labelseq;
         }
         Kind::Assign => {
             if let Kind::Var(ident) = (node.lhs).as_ref().unwrap().kind {
                 //指定された変数のアドレスをスタックにプッシュする
                 push_var_address(ident);
                 //右辺の値を計算
-                gen(node.rhs);
+                gen(node.rhs, labelseq);
                 //変数に右辺の値を代入
                 println!("  pop rdi");
                 println!("  pop rax");
                 println!("  mov [rax], rdi");
                 println!("  push rdi");
                 //代入式が終わったので関数終了
-                return;
+                return labelseq;
             } else {
                 panic!("式の左辺に変数以外があります。プログラムを終了します。");
             }
@@ -84,8 +117,8 @@ fn gen(node: Option<Box<Node>>) {
         _ => (),
     }
     //ノードが演算子だった場合
-    gen(node.lhs);
-    gen(node.rhs);
+    labelseq = gen(node.lhs, labelseq);
+    labelseq = gen(node.rhs, labelseq);
 
     println!("  pop rdi");
     println!("  pop rax");
@@ -120,6 +153,7 @@ fn gen(node: Option<Box<Node>>) {
         _ => panic!("不正なノードがあります。プログラムを終了します。"),
     }
     println!("  push rax");
+    return labelseq;
 }
 
 //指定された変数のアドレスをスタックにプッシュする

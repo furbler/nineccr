@@ -25,6 +25,7 @@ impl IdentList {
 
 // 入力文字列からトークン列を生成
 pub fn tokenize(arg: &mut str::Chars) -> Vec<Kind> {
+    // 出現した変数名とその識別番号のハッシュマップ
     let mut ident_list = IdentList {
         list: HashMap::new(),
     };
@@ -120,9 +121,10 @@ pub fn tokenize(arg: &mut str::Chars) -> Vec<Kind> {
                     }
                 }
             }
-            //識別子または変数の場合
+            // キーワードまたは変数の場合
+            // 先頭が数字の場合は除く
             bravo if is_ident_char(bravo) => {
-                //連続した変数に使える文字列を取得
+                //トークンを生成
                 let (ret_char, ret_token) = ident_token(bravo, arg, &mut ident_list);
 
                 //変数名に対応した識別番号をトークンに登録
@@ -210,23 +212,34 @@ fn ident_token(
 
     match first_c {
         'r' => {
-            // return識別子または通常の変数
             (is_ident, (popped_char, c_vec)) = check_ident("return", c_iter);
+            if is_ident {
+                // returnキーワード
+                return (popped_char, Kind::Return);
+            }
+        }
+        'i' => {
+            (is_ident, (popped_char, c_vec)) = check_ident("if", c_iter);
+            if is_ident {
+                // ifキーワード
+                return (popped_char, Kind::If(None));
+            }
+        }
+        'e' => {
+            (is_ident, (popped_char, c_vec)) = check_ident("else", c_iter);
+            if is_ident {
+                // elseキーワード
+                return (popped_char, Kind::Else);
+            }
         }
         _ => {
             // 通常の変数
-            is_ident = false;
             (popped_char, c_vec) = continue_var(vec![first_c], c_iter);
         }
     }
-    if is_ident {
-        //識別子
-        (popped_char, Kind::Return)
-    } else {
-        //通常の変数
-        let ident = c_vec.into_iter().collect();
-        (popped_char, Kind::Var(ident_list.find_ident_index(ident)))
-    }
+    // Vec<char>をStringに変換
+    let ident = c_vec.into_iter().collect();
+    (popped_char, Kind::Var(ident_list.find_ident_index(ident)))
 }
 
 //変数の最初に使える文字なら真を返す
@@ -235,6 +248,7 @@ fn is_ident_char(c: char) -> bool {
 }
 //識別子であれば真を返す
 //異なっていたらイテレータで消費した文字をVecにまとめて返す
+// 一文字目は変数に使える文字とする
 fn check_ident(ident_str: &str, c_iter: &mut str::Chars) -> (bool, (Option<char>, Vec<char>)) {
     //比較対象の文字列の1文字目
     let mut c_vec = vec![ident_str.chars().nth(0).unwrap()];
@@ -252,11 +266,16 @@ fn check_ident(ident_str: &str, c_iter: &mut str::Chars) -> (bool, (Option<char>
                 cnt += 1;
             } else {
                 //通常の変数
-                return (false, continue_var(c_vec, c_iter));
+                if is_ident_char(c) || c.is_numeric() {
+                    return (false, continue_var(c_vec, c_iter));
+                } else {
+                    return (false, (popped_char, c_vec));
+                }
             }
         } else {
-            if is_ident_char(c) {
-                //識別子の文字列の後に文字が続いていた場合は通常の変数とみなす
+            // 比較文字列が終了した場合
+            if is_ident_char(c) || c.is_numeric() {
+                //識別子の文字列の後に変数に使える文字が続いていた場合は通常の変数とみなす
                 c_vec.push(c);
                 return (false, continue_var(c_vec, c_iter));
             } else {

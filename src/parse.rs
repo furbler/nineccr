@@ -16,29 +16,85 @@ pub fn program(tokens: &Vec<Kind>) -> Vec<Node> {
 }
 
 // statement
-// stmt = expr ";" | "return" expr ";"
+// stmt = expr ";"
+// | "return" expr ";"
+// | "if" "(" expr ")" stmt ("else" stmt)?
 fn stmt(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     let mut node;
-    let ret_progress;
+    let mut next_progress;
 
-    if let Kind::Return = tokens[progress] {
-        (node, ret_progress) = expr(tokens, progress + 1);
-        node = Node {
-            kind: Kind::Return,
-            lhs: Some(Box::new(node)),
-            rhs: None,
-        };
-    } else {
-        (node, ret_progress) = expr(tokens, progress);
-    }
+    match tokens[progress] {
+        // "return" expr ";"
+        Kind::Return => {
+            (node, next_progress) = expr(tokens, progress + 1);
 
-    if tokens.len() <= ret_progress {
-        panic!("文の終わりに;が付いていません。プログラムを終了します。");
-    }
-    if let Kind::Semicolon = tokens[ret_progress] {
-        (node, ret_progress + 1)
-    } else {
-        panic!("文の終わりに;が付いていません。プログラムを終了します。");
+            node = Node {
+                kind: Kind::Return,
+                lhs: Some(Box::new(node)),
+                rhs: None,
+            };
+
+            if tokens.len() <= next_progress {
+                panic!("文の終わりに;が付いていません。プログラムを終了します。");
+            }
+            if let Kind::Semicolon = tokens[next_progress] {
+                return (node, next_progress + 1);
+            } else {
+                panic!("文の終わりに;が付いていません。プログラムを終了します。");
+            }
+        }
+        // "if" "(" expr ")" stmt ("else" stmt)?
+        Kind::If(_) => {
+            // 条件式
+            let node_cond;
+            // then式
+            let node_then;
+            // else式
+            let node_else;
+            if let Kind::BracOpen = tokens[progress + 1] {
+                // 条件式
+                (node_cond, next_progress) = expr(tokens, progress + 2);
+            } else {
+                panic!("if文の条件式は括弧で囲ってください。プログラムを終了します。");
+            }
+            if let Kind::BracClose = tokens[next_progress] {
+                // 条件式が真のときに実行する部分
+                (node_then, next_progress) = stmt(tokens, next_progress + 1);
+            } else {
+                panic!("if文の条件式は括弧で囲ってください。プログラムを終了します。");
+            }
+            if let Kind::Else = tokens[next_progress] {
+                // 条件式がの偽のときに実行する部分
+                (node_else, next_progress) = stmt(tokens, next_progress + 1);
+                node = Node {
+                    kind: Kind::If(Some(Box::new(node_cond))),
+                    lhs: Some(Box::new(node_then)),
+                    rhs: Some(Box::new(node_else)),
+                };
+            } else {
+                // elseが無い場合
+                node = Node {
+                    kind: Kind::If(Some(Box::new(node_cond))),
+                    lhs: Some(Box::new(node_then)),
+                    rhs: None,
+                };
+            }
+            // 条件式が真ならlhsを、偽ならrhsを実行すべし
+            return (node, next_progress);
+        }
+        // expr ";"
+        _ => {
+            (node, next_progress) = expr(tokens, progress);
+
+            if tokens.len() <= next_progress {
+                panic!("文の終わりに;が付いていません。プログラムを終了します。");
+            }
+            if let Kind::Semicolon = tokens[next_progress] {
+                return (node, next_progress + 1);
+            } else {
+                panic!("文の終わりに;が付いていません。プログラムを終了します。");
+            }
+        }
     }
 }
 
