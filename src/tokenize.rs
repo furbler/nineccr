@@ -199,7 +199,8 @@ fn continue_var(mut c_vec: Vec<char>, c_iter: &mut str::Chars) -> (Option<char>,
     (ret_char, c_vec)
 }
 
-// 文字を調べて、該当するトークンを返す
+// キーワードか変数が判断して、トークンを生成して返す
+
 fn ident_token(
     first_c: char,
     c_iter: &mut str::Chars,
@@ -230,6 +231,13 @@ fn ident_token(
             if is_ident {
                 // elseキーワード
                 return (popped_char, Kind::Else);
+            }
+        }
+        'w' => {
+            (is_ident, (popped_char, c_vec)) = check_ident("while", c_iter);
+            if is_ident {
+                // whileキーワード
+                return (popped_char, Kind::While(None));
             }
         }
         _ => {

@@ -19,6 +19,7 @@ pub fn program(tokens: &Vec<Kind>) -> Vec<Node> {
 // stmt = expr ";"
 // | "return" expr ";"
 // | "if" "(" expr ")" stmt ("else" stmt)?
+// | "while" "(" expr ")" stmt
 fn stmt(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     let mut node;
     let mut next_progress;
@@ -80,6 +81,33 @@ fn stmt(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
                 };
             }
             // 条件式が真ならlhsを、偽ならrhsを実行すべし
+            return (node, next_progress);
+        }
+        // "while" "(" expr ")" stmt
+        Kind::While(_) => {
+            // 条件式
+            let node_cond;
+            // then式
+            let node_then;
+            if let Kind::BracOpen = tokens[progress + 1] {
+                // 条件式
+                (node_cond, next_progress) = expr(tokens, progress + 2);
+            } else {
+                panic!("while文の条件式は括弧で囲ってください。プログラムを終了します。");
+            }
+            if let Kind::BracClose = tokens[next_progress] {
+                // 条件式が真のときに実行する部分
+                (node_then, next_progress) = stmt(tokens, next_progress + 1);
+            } else {
+                panic!("while文の条件式は括弧で囲ってください。プログラムを終了します。");
+            }
+            node = Node {
+                kind: Kind::While(Some(Box::new(node_cond))),
+                lhs: Some(Box::new(node_then)),
+                rhs: None,
+            };
+
+            // 条件式が真ならlhsの処理をループ
             return (node, next_progress);
         }
         // expr ";"

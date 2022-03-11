@@ -86,6 +86,23 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
             }
             return labelseq;
         }
+        Kind::While(node_cond) => {
+            // この関数内でのみ使うラベル番号(ラベル番号を使うすべてのgen関数のラベル番号に対して一意)
+            let seq = labelseq;
+            // ラベル番号更新
+            labelseq += 1;
+            println!(".Lbegin{}:", seq);
+            // 条件式
+            labelseq = gen(node_cond, labelseq);
+            println!("  pop rax");
+            println!("  cmp rax, 0");
+            println!("  je  .Lend{}", seq);
+            // then式
+            labelseq = gen(node.lhs, labelseq);
+            println!("  jmp .Lbegin{}", seq);
+            println!(".Lend{}:", seq);
+            return labelseq;
+        }
         Kind::Var(ident) => {
             //指定された変数のアドレスをスタックにプッシュする
             push_var_address(ident);
