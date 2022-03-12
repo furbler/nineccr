@@ -20,6 +20,7 @@ pub fn program(tokens: &Vec<Kind>) -> Vec<Node> {
 // | "return" expr ";"
 // | "if" "(" expr ")" stmt ("else" stmt)?
 // | "while" "(" expr ")" stmt
+// | "for" "(" expr? ";" expr? ";" expr? ")" stmt
 fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
     let mut node;
     match tokens[progress] {
@@ -107,7 +108,75 @@ fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
             // 条件式が真ならlhsの処理をループ
             return (node, progress);
         }
+        // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+        Kind::For(..) => {
+            // 初期化式
+            let node_init;
+            // 条件式
+            let node_cond;
+            // 変化式
+            let node_inc;
+            // then式
+            let node_then;
 
+            if let Kind::BracOpen = tokens[progress + 1] {
+                if let Kind::Semicolon = tokens[progress + 2] {
+                    // 初期化式無し
+                    node_init = None;
+                    progress = progress + 3;
+                } else {
+                    // 初期化式
+                    (node, progress) = expr(tokens, progress + 2);
+                    node_init = Some(Box::new(node));
+                    // 初期化式と条件式の間のセミコロン
+                    if let Kind::Semicolon = tokens[progress] {
+                        progress += 1;
+                    } else {
+                        panic!("for文に;が足りません。プログラムを終了します。");
+                    }
+                }
+            } else {
+                panic!("for文の条件式は括弧で囲ってください。プログラムを終了します。");
+            }
+            if let Kind::Semicolon = tokens[progress] {
+                // 条件式無し（無条件ループ）
+                node_cond = None;
+                progress = progress + 1;
+            } else {
+                // 条件式
+                (node, progress) = expr(tokens, progress);
+                node_cond = Some(Box::new(node));
+                // 条件式と変化式の間のセミコロン
+                if let Kind::Semicolon = tokens[progress] {
+                    progress += 1;
+                } else {
+                    panic!("for文に;が足りません。プログラムを終了します。");
+                }
+            }
+            if let Kind::BracClose = tokens[progress] {
+                // 変化式無し
+                node_inc = None;
+                progress = progress + 1;
+            } else {
+                // 変化式
+                (node, progress) = expr(tokens, progress);
+                node_inc = Some(Box::new(node));
+                if let Kind::BracClose = tokens[progress] {
+                    progress += 1;
+                } else {
+                    panic!("for文の条件式は括弧で囲ってください。プログラムを終了します。");
+                }
+            }
+
+            // ループ本体
+            (node_then, progress) = stmt(tokens, progress);
+            node = Node {
+                kind: Kind::For(node_init, node_cond, node_inc),
+                lhs: Some(Box::new(node_then)),
+                rhs: None,
+            };
+            return (node, progress);
+        }
         // expr ";"
         _ => {
             (node, progress) = expr(tokens, progress);
@@ -343,7 +412,10 @@ fn primary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
         ),
         //num
         Kind::Num(_) => expect_num(tokens, progress),
-        _ => panic!("構文木の末端には変数か数値しか置けません。プログラムを終了します。"),
+        _ => panic!(
+            "構文木の末端には変数か数値しか置けません。\nprogress = {}\nプログラムを終了します。",
+            progress
+        ),
     }
 }
 

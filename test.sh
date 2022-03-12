@@ -35,12 +35,12 @@ assert 1 '42==42;'
 assert 1 '0!=1;'
 assert 0 '42!=42;'
 
-assert 1 '0<1;'
+assert 1 '0<13;'
 assert 0 '1<1;'
 assert 0 '2<1;'
 assert 1 '0<=1;' 
 assert 1 '1<=1;'
-assert 0 '2<=1;'
+assert 0 '12<=1;'
 
 assert 1 '1>0;'
 assert 0 '1>1;'
@@ -82,5 +82,12 @@ assert 2 'if (2-1) 2; else 7;'
 assert 7 'if (1-1) return 2; else 7;'
 
 assert 10 'i=0; while(i<10) i=i+1; return i;'
+
+assert 3 'for (;;) return 3; return 5;'
+assert 10 'for (i=0; i<10; i=i+1) 3; return i;'
+assert 10 'i=0; for (; i<10; i=i+1) 3; return i;'
+assert 10 'i=0; for (; i<10;) i=i+1; return i;'
+
+assert 55 'i=0; j=0; for (i=0; i<=10; i=i+1) j=i+j; return j;'
 
 echo OK

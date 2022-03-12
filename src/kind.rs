@@ -17,6 +17,7 @@ pub enum Kind {
     Return,                                                       // return
     If(Option<Box<Node>>),                                        // if(条件式のノード)
     While(Option<Box<Node>>),                                     // while(条件式のノード)
+    For(Option<Box<Node>>, Option<Box<Node>>, Option<Box<Node>>), // for(初期化式;条件式;変化式)
     Else,                                                         //else
     //変数の1文字目にはアルファベットまたはアンダーバーのみ可
     //2文字目以降はそれに加えて数字も可
@@ -24,6 +25,7 @@ pub enum Kind {
     //数値はそのまま出力するだけなのでchar型とする
     Num(Vec<char>),
 }
+
 //構文木を構成するノード
 pub struct Node {
     pub kind: Kind,

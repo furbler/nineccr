@@ -240,6 +240,13 @@ fn ident_token(
                 return (popped_char, Kind::While(None));
             }
         }
+        'f' => {
+            (is_ident, (popped_char, c_vec)) = check_ident("for", c_iter);
+            if is_ident {
+                // whileキーワード
+                return (popped_char, Kind::For(None, None, None));
+            }
+        }
         _ => {
             // 通常の変数
             (popped_char, c_vec) = continue_var(vec![first_c], c_iter);
