@@ -155,8 +155,9 @@ fn push_token(c: char, mut tokens: Vec<Kind>) -> Vec<Kind> {
         '(' => tokens.push(Kind::BracOpen),
         ')' => tokens.push(Kind::BracClose),
         ';' => tokens.push(Kind::Semicolon),
-        //空白はスキップ
+        //空白と改行はスキップ（トークンを分ける区切り文字とする）
         ' ' => (),
+        '\n' => (),
         _ => panic!(
             "不正な文字\"{}\"が存在するため、プログラムを終了します。",
             c
