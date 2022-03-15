@@ -46,6 +46,15 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
             //構文木の末尾のノードなので関数終了
             return labelseq;
         }
+        // {}の中
+        Kind::CurlyBracOpen => {
+            if let None = node.lhs {
+                return labelseq;
+            } else {
+                labelseq = gen(node.lhs, labelseq);
+                return gen(node.rhs, labelseq);
+            }
+        }
         Kind::Return => {
             labelseq = gen(node.lhs, labelseq);
             println!("  pop rax");
@@ -158,7 +167,7 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
                 panic!("式の左辺に変数以外があります。プログラムを終了します。");
             }
         }
-        //ノードが数値、変数、代入演算子、識別子以外の場合のみ以降の処理に進む
+        //ノードが上記に当てはまらない場合のみ以降の処理に進む
         _ => (),
     }
     //ノードが演算子だった場合

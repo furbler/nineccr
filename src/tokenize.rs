@@ -152,8 +152,10 @@ fn push_token(c: char, mut tokens: Vec<Kind>) -> Vec<Kind> {
         '-' => tokens.push(Kind::Sub),
         '*' => tokens.push(Kind::Mul),
         '/' => tokens.push(Kind::Div),
-        '(' => tokens.push(Kind::BracOpen),
-        ')' => tokens.push(Kind::BracClose),
+        '(' => tokens.push(Kind::RoundBracOpen),
+        ')' => tokens.push(Kind::RoundBracClose),
+        '{' => tokens.push(Kind::CurlyBracOpen),
+        '}' => tokens.push(Kind::CurlyBracClose),
         ';' => tokens.push(Kind::Semicolon),
         //空白と改行はスキップ（トークンを分ける区切り文字とする）
         ' ' => (),

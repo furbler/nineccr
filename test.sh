@@ -81,7 +81,10 @@ assert 2 'if (2-1) return 2; else return 3;'
 assert 2 'if (2-1) 2; else 7;'
 assert 7 'if (1-1) return 2; else 7;'
 
+assert 3 '{1; {2;} return 3;}'
+
 assert 10 'i=0; while(i<10) i=i+1; return i;'
+assert 55 'i=0; j=0; while(i<=10) {j=i+j; i=i+1;} return j;'
 
 assert 3 'for (;;) return 3; return 5;'
 assert 10 'for (i=0; i<10; i=i+1) 3; return i;'

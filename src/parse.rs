@@ -17,6 +17,7 @@ pub fn program(tokens: &Vec<Kind>) -> Vec<Node> {
 
 // statement
 // stmt = expr ";"
+// | "{" stmt* "}"
 // | "return" expr ";"
 // | "if" "(" expr ")" stmt ("else" stmt)?
 // | "while" "(" expr ")" stmt
@@ -42,6 +43,33 @@ fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
                 panic!("文の終わりに;が付いていません。プログラムを終了します。");
             }
         }
+        // "{" stmt* "}"
+        Kind::CurlyBracOpen => {
+            let mut node = Node {
+                // ここは他のノードのkindとかぶらなければ何でも良い
+                kind: Kind::CurlyBracOpen,
+                // 前の文を保持するノードを指す
+                lhs: None,
+                // 前の文
+                rhs: None,
+            };
+            progress += 1;
+            // } が出てくるまで繰り返す
+            loop {
+                let node_stmt;
+                if let Kind::CurlyBracClose = tokens[progress] {
+                    return (node, progress + 1);
+                } else {
+                    (node_stmt, progress) = stmt(tokens, progress);
+                    node = Node {
+                        kind: Kind::CurlyBracOpen,
+                        lhs: Some(Box::new(node)),
+                        rhs: Some(Box::new(node_stmt)),
+                    };
+                }
+            }
+        }
+
         // "if" "(" expr ")" stmt ("else" stmt)?
         Kind::If(_) => {
             // 条件式
@@ -50,13 +78,13 @@ fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
             let node_then;
             // else式
             let node_else;
-            if let Kind::BracOpen = tokens[progress + 1] {
+            if let Kind::RoundBracOpen = tokens[progress + 1] {
                 // 条件式
                 (node_cond, progress) = expr(tokens, progress + 2);
             } else {
                 panic!("if文の条件式は括弧で囲ってください。プログラムを終了します。");
             }
-            if let Kind::BracClose = tokens[progress] {
+            if let Kind::RoundBracClose = tokens[progress] {
                 // 条件式が真のときに実行する部分
                 (node_then, progress) = stmt(tokens, progress + 1);
             } else {
@@ -87,13 +115,13 @@ fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
             let node_cond;
             // then式
             let node_then;
-            if let Kind::BracOpen = tokens[progress + 1] {
+            if let Kind::RoundBracOpen = tokens[progress + 1] {
                 // 条件式
                 (node_cond, progress) = expr(tokens, progress + 2);
             } else {
                 panic!("while文の条件式は括弧で囲ってください。プログラムを終了します。");
             }
-            if let Kind::BracClose = tokens[progress] {
+            if let Kind::RoundBracClose = tokens[progress] {
                 // 条件式が真のときに実行する部分
                 (node_then, progress) = stmt(tokens, progress + 1);
             } else {
@@ -119,7 +147,7 @@ fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
             // then式
             let node_then;
 
-            if let Kind::BracOpen = tokens[progress + 1] {
+            if let Kind::RoundBracOpen = tokens[progress + 1] {
                 if let Kind::Semicolon = tokens[progress + 2] {
                     // 初期化式無し
                     node_init = None;
@@ -153,7 +181,7 @@ fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
                     panic!("for文に;が足りません。プログラムを終了します。");
                 }
             }
-            if let Kind::BracClose = tokens[progress] {
+            if let Kind::RoundBracClose = tokens[progress] {
                 // 変化式無し
                 node_inc = None;
                 progress = progress + 1;
@@ -161,7 +189,7 @@ fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
                 // 変化式
                 (node, progress) = expr(tokens, progress);
                 node_inc = Some(Box::new(node));
-                if let Kind::BracClose = tokens[progress] {
+                if let Kind::RoundBracClose = tokens[progress] {
                     progress += 1;
                 } else {
                     panic!("for文の条件式は括弧で囲ってください。プログラムを終了します。");
@@ -393,10 +421,10 @@ fn unary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
 // primary = "(" expr ")" | ident | num
 fn primary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     match tokens[progress] {
-        Kind::BracOpen => {
+        Kind::RoundBracOpen => {
             //"(" expr ")"
             let (node, progress) = expr(tokens, progress + 1);
-            if let Kind::BracClose = tokens[progress] {
+            if let Kind::RoundBracClose = tokens[progress] {
                 (node, progress + 1)
             } else {
                 panic!("括弧が閉じていません。プログラムを終了します。");
