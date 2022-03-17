@@ -17,6 +17,7 @@ pub enum Kind {
     Semicolon,                // ;
     Assign,                   // = 代入演算子
     Return,                   // return
+    FunCall(String),          // 関数呼び出し
     If(Option<Box<Node>>),    // if(条件式のノード)
     While(Option<Box<Node>>), // while(条件式のノード)
     For(Option<Box<Node>>, Option<Box<Node>>, Option<Box<Node>>), // for(初期化式;条件式;変化式)

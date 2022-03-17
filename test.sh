@@ -1,11 +1,17 @@
 #!/bin/bash
+# オブジェクトファイルtmp2.oを作成
+cat <<EOF | gcc -xc -c -o tmp2.o -
+int ret31() { return 31; }
+int ret5() { return 5; }
+EOF
+
 assert() {
   expected="$1"
   input="$2"
 
   cargo build 
   ./target/debug/nineccr "$input" > tmp.s
-  gcc -o tmp tmp.s
+  gcc -static -o tmp tmp.s tmp2.o
   ./tmp
   actual="$?"
 
@@ -70,7 +76,7 @@ assert 3 '1; 2; return 3;'
 assert 3 'foo=3; return foo;'
 assert 8 'foo123=3; bar=5; return foo123+bar;'
 assert 8 'foo_123=3; returnbar=5; return foo_123+returnbar;'
-assert 16 'ret=7; els3=9; ret+els3;'
+assert 16 'ret8156=7; els3=9; ret8156+els3;'
 assert 16 'return5=7; ifa=9; return5+ifa;'
 
 assert 3 'if (0) return 2; return 3;'
@@ -90,9 +96,13 @@ assert 3 'for (;;) return 3; return 5;'
 assert 10 'for (i=0; i<10; i=i+1) 3; return i;'
 assert 10 'i=0; for (; i<10; i=i+1) 3; return i;'
 assert 10 'i=0; for (; i<10;) i=i+1; return i;'
+assert 10 'i=0; for (; i<10;i=i+1) {}  return i;'
 
 assert 55 'i=0; j=0; 
 for (i=0; i<=10; i=i+1) j=i+j;
 return j;'
+
+assert 31 'return ret31();'
+assert 5 'return ret5   ();'
 
 echo OK

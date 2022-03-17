@@ -203,13 +203,12 @@ fn continue_var(mut c_vec: Vec<char>, c_iter: &mut str::Chars) -> (Option<char>,
 }
 
 // キーワードか変数が判断して、トークンを生成して返す
-
 fn ident_token(
     first_c: char,
     c_iter: &mut str::Chars,
     ident_list: &mut IdentList,
 ) -> (Option<char>, Kind) {
-    let popped_char;
+    let mut popped_char;
     let c_vec;
     // 変数でない識別子か否か
     let is_ident;
@@ -255,9 +254,34 @@ fn ident_token(
             (popped_char, c_vec) = continue_var(vec![first_c], c_iter);
         }
     }
-    // Vec<char>をStringに変換
+    // 変数の文字Vec<char>をStringに変換
     let ident = c_vec.into_iter().collect();
+
+    // 変数名の後に"("があれば関数名
+    if let Some(c) = skip_nullity(popped_char, c_iter) {
+        if c == '(' {
+            // 関数名
+            return (Some(c), Kind::FunCall(ident));
+        } else {
+            // 変数名
+            popped_char = Some(c);
+        }
+    }
+
     (popped_char, Kind::Var(ident_list.find_ident_index(ident)))
+}
+
+// 空白や改行など区切りに使われる無視すべき文字を飛ばす
+fn skip_nullity(mut popped_char: Option<char>, c_iter: &mut str::Chars) -> Option<char> {
+    while let Some(c) = popped_char {
+        match c {
+            ' ' => (),
+            '\n' => (),
+            _ => return Some(c),
+        }
+        popped_char = c_iter.next();
+    }
+    None
 }
 
 //変数の最初に使える文字なら真を返す
@@ -267,9 +291,9 @@ fn is_ident_char(c: char) -> bool {
 //識別子であれば真を返す
 //異なっていたらイテレータで消費した文字をVecにまとめて返す
 // 一文字目は変数に使える文字とする
-fn check_ident(ident_str: &str, c_iter: &mut str::Chars) -> (bool, (Option<char>, Vec<char>)) {
+fn check_ident(compare_str: &str, c_iter: &mut str::Chars) -> (bool, (Option<char>, Vec<char>)) {
     //比較対象の文字列の1文字目
-    let mut c_vec = vec![ident_str.chars().nth(0).unwrap()];
+    let mut c_vec = vec![compare_str.chars().nth(0).unwrap()];
     //イテレータで取り出して未処理の一文字
     let mut popped_char = None;
     //比較中の文字の位置(2文字目からスタート)
@@ -278,13 +302,14 @@ fn check_ident(ident_str: &str, c_iter: &mut str::Chars) -> (bool, (Option<char>
     while let Some(c) = c_iter.next() {
         popped_char = Some(c);
         //比較文字列から1文字取り出す
-        if let Some(str_char) = ident_str.chars().nth(cnt) {
-            if str_char == c {
+        if let Some(compare_char) = compare_str.chars().nth(cnt) {
+            if compare_char == c {
                 c_vec.push(c);
                 cnt += 1;
             } else {
                 //通常の変数
                 if is_ident_char(c) || c.is_numeric() {
+                    c_vec.push(c);
                     return (false, continue_var(c_vec, c_iter));
                 } else {
                     return (false, (popped_char, c_vec));

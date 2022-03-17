@@ -418,7 +418,10 @@ fn unary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     }
 }
 
-// primary = "(" expr ")" | ident | num
+// primary = "(" expr ")"
+// | ident
+// | ident ("(" ")")
+// | num
 fn primary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     match tokens[progress] {
         Kind::RoundBracOpen => {
@@ -430,6 +433,7 @@ fn primary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
                 panic!("括弧が閉じていません。プログラムを終了します。");
             }
         }
+        // ident
         Kind::Var(index) => (
             Node {
                 kind: Kind::Var(index),
@@ -438,6 +442,22 @@ fn primary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
             },
             progress + 1,
         ),
+        // ident ("(" ")")
+        Kind::FunCall(ref fun_name) => {
+            if let Kind::RoundBracOpen = tokens[progress + 1] {
+                if let Kind::RoundBracClose = tokens[progress + 2] {
+                    return (
+                        Node {
+                            kind: Kind::FunCall(fun_name.clone()),
+                            lhs: None,
+                            rhs: None,
+                        },
+                        progress + 3,
+                    );
+                }
+            }
+            panic!("関数への引数はまだ未実装です。プログラムを終了します。");
+        }
         //num
         Kind::Num(_) => expect_num(tokens, progress),
         _ => panic!(

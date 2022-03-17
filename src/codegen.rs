@@ -32,7 +32,7 @@ pub fn codegen(nodes: Vec<Node>) {
     println!("  ret");
 }
 
-// 一文の処理
+// 文の処理
 fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
     let node = *node.unwrap();
     match node.kind {
@@ -61,6 +61,11 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
             println!("  mov rsp, rbp");
             println!("  pop rbp");
             println!("  ret");
+            return labelseq;
+        }
+        Kind::FunCall(func_name) => {
+            println!("  call {}", func_name);
+            println!("  push rax");
             return labelseq;
         }
         Kind::If(node_cond) => {
