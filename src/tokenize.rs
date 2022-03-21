@@ -157,6 +157,7 @@ fn push_token(c: char, mut tokens: Vec<Kind>) -> Vec<Kind> {
         '{' => tokens.push(Kind::CurlyBracOpen),
         '}' => tokens.push(Kind::CurlyBracClose),
         ';' => tokens.push(Kind::Semicolon),
+        ',' => tokens.push(Kind::Comma),
         //空白と改行はスキップ（トークンを分ける区切り文字とする）
         ' ' => (),
         '\n' => (),
@@ -261,7 +262,7 @@ fn ident_token(
     if let Some(c) = skip_nullity(popped_char, c_iter) {
         if c == '(' {
             // 関数名
-            return (Some(c), Kind::FunCall(ident));
+            return (Some(c), Kind::FunCall(ident, None));
         } else {
             // 変数名
             popped_char = Some(c);

@@ -63,10 +63,38 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
             println!("  ret");
             return labelseq;
         }
-        Kind::FunCall(func_name) => {
-            println!("  call {}", func_name);
-            println!("  push rax");
-            return labelseq;
+        Kind::FunCall(func_name, args) => {
+            // 引数の入るレジスタ
+            let arg_register = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+            if let Some(args) = args {
+                // 引数あり
+                let args_num: i32 = if args.len() > arg_register.len() {
+                    panic!(
+                        "引数はレジスタの数である{}個以下にして下さい。プログラムを終了します。",
+                        arg_register.len()
+                    );
+                } else {
+                    args.len()  as i32
+                };
+                // 各引数を評価
+                for arg in args {
+                    labelseq = gen(Some(arg), labelseq);
+                }
+                let mut arg_cnt = args_num - 1;
+                while arg_cnt >= 0 {
+                    // 順番に注意
+                    println!("  pop {}", arg_register[arg_cnt as usize]);
+                    arg_cnt -= 1;
+                }
+                println!("  call {}", func_name);
+                println!("  push rax");
+                return labelseq;
+            } else {
+                // 引数なし
+                println!("  call {}", func_name);
+                println!("  push rax");
+                return labelseq;
+            }
         }
         Kind::If(node_cond) => {
             // この関数内でのみ使うラベル番号(ラベル番号を使うすべてのgen関数のラベル番号に対して一意)

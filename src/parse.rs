@@ -1,3 +1,5 @@
+use std::panic;
+
 use crate::kind::Kind;
 use crate::kind::Node;
 
@@ -420,9 +422,9 @@ fn unary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
 
 // primary = "(" expr ")"
 // | ident
-// | ident ("(" ")")
+// | ident func-args?
 // | num
-fn primary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
+fn primary(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
     match tokens[progress] {
         Kind::RoundBracOpen => {
             //"(" expr ")"
@@ -442,21 +444,27 @@ fn primary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
             },
             progress + 1,
         ),
-        // ident ("(" ")")
-        Kind::FunCall(ref fun_name) => {
-            if let Kind::RoundBracOpen = tokens[progress + 1] {
-                if let Kind::RoundBracClose = tokens[progress + 2] {
-                    return (
+        // ident "(" func-args? ")"
+        Kind::FunCall(ref func_name, _) => {
+            progress += 1;
+            if let Kind::RoundBracOpen = tokens[progress] {
+                if let Kind::RoundBracClose = tokens[progress + 1] {
+                    // 引数なし
+                    (
                         Node {
-                            kind: Kind::FunCall(fun_name.clone()),
+                            kind: Kind::FunCall(func_name.clone(), None),
                             lhs: None,
                             rhs: None,
                         },
-                        progress + 3,
-                    );
+                        progress + 2,
+                    )
+                } else {
+                    // 引数あり
+                    func_args(tokens, progress + 1, func_name.clone())
                 }
+            } else {
+                panic!("関数名の後に括弧がありません。プログラムを終了します。")
             }
-            panic!("関数への引数はまだ未実装です。プログラムを終了します。");
         }
         //num
         Kind::Num(_) => expect_num(tokens, progress),
@@ -464,6 +472,42 @@ fn primary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
             "構文木の末端には変数か数値しか置けません。\nprogress = {}\nプログラムを終了します。",
             progress
         ),
+    }
+}
+
+// func-args =  (assign ("," assign)*)?
+fn func_args(tokens: &Vec<Kind>, mut progress: usize, func_name: String) -> (Node, usize) {
+    let mut args = Vec::new();
+    // 引数の1つを評価
+    let node;
+    (node, progress) = assign(tokens, progress);
+    // 引数のリストに追加
+    args.push(Box::new(node));
+
+    loop {
+        match tokens[progress] {
+            Kind::Comma => {
+                progress += 1;
+            }
+            Kind::RoundBracClose => {
+                return (
+                    Node {
+                        kind: Kind::FunCall(
+                            func_name.clone(),
+                            if args.len() == 0 { None } else { Some(args) },
+                        ),
+                        lhs: None,
+                        rhs: None,
+                    },
+                    progress + 1,
+                );
+            }
+            _ => panic!("関数の引数の記述が不正です。プログラムを終了します。"),
+        }
+        let node;
+        (node, progress) = assign(tokens, progress);
+        // 引数のリストに追加
+        args.push(Box::new(node));
     }
 }
 
