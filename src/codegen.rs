@@ -27,6 +27,7 @@ pub fn codegen(nodes: Vec<Node>) {
 
     // エピローグ
     // 最後の式の結果がRAXに残っているのでそれが返り値になる
+    println!(".Lreturn:");
     println!("  mov rsp, rbp");
     println!("  pop rbp");
     println!("  ret");
@@ -58,9 +59,7 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
         Kind::Return => {
             labelseq = gen(node.lhs, labelseq);
             println!("  pop rax");
-            println!("  mov rsp, rbp");
-            println!("  pop rbp");
-            println!("  ret");
+            println!("  jmp .Lreturn");
             return labelseq;
         }
         Kind::FunCall(func_name, args) => {
@@ -74,7 +73,7 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
                         arg_register.len()
                     );
                 } else {
-                    args.len()  as i32
+                    args.len() as i32
                 };
                 // 各引数を評価
                 for arg in args {
