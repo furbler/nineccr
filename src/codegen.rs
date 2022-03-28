@@ -65,8 +65,8 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
         Kind::FunCall(func_name, args) => {
             // 引数の入るレジスタ
             let arg_register = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+            // 引数がある場合
             if let Some(args) = args {
-                // 引数あり
                 let args_num: i32 = if args.len() > arg_register.len() {
                     panic!(
                         "引数はレジスタの数である{}個以下にして下さい。プログラムを終了します。",
@@ -85,15 +85,33 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
                     println!("  pop {}", arg_register[arg_cnt as usize]);
                     arg_cnt -= 1;
                 }
-                println!("  call {}", func_name);
-                println!("  push rax");
-                return labelseq;
-            } else {
-                // 引数なし
-                println!("  call {}", func_name);
-                println!("  push rax");
-                return labelseq;
             }
+            let seq = labelseq;
+            labelseq += 1;
+            // We need to align RSP to a 16 byte boundary before
+            // calling a function because it is an ABI requirement.
+            // RAX is set to 0 for variadic function.
+            // スタックポインタが16の倍数か確認
+            println!("  mov rax, rsp");
+            println!("  and rax, 15");
+
+            // if (スタックポインタが16の倍数)
+            println!("  jnz .Lcall{}", seq);
+            // {
+            println!("  mov rax, 0");
+            println!("  call {}", func_name);
+            println!("  jmp .Lend{}", seq);
+            // } else {
+            println!(".Lcall{}:", seq);
+            println!("  sub rsp, 8");
+            println!("  mov rax, 0");
+            println!("  call {}", func_name);
+            println!("  push rax");
+            println!("  add rsp, 8");
+            // }
+            println!(".Lend{}:", seq);
+            println!(" push rax");
+            return labelseq;
         }
         Kind::If(node_cond) => {
             // この関数内でのみ使うラベル番号(ラベル番号を使うすべてのgen関数のラベル番号に対して一意)

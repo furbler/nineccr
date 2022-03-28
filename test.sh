@@ -14,7 +14,7 @@ assert() {
   expected="$1"
   input="$2"
 
-  cargo build 
+  cargo build
   ./target/debug/nineccr "$input" > tmp.s
   gcc -static -o tmp tmp.s tmp2.o
   ./tmp
@@ -49,7 +49,7 @@ assert 0 '42!=42;'
 assert 1 '0<13;'
 assert 0 '1<1;'
 assert 0 '2<1;'
-assert 1 '0<=1;' 
+assert 1 '0<=1;'
 assert 1 '1<=1;'
 assert 0 '12<=1;'
 
@@ -103,7 +103,7 @@ assert 10 'i=0; for (; i<10; i=i+1) 3; return i;'
 assert 10 'i=0; for (; i<10;) i=i+1; return i;'
 assert 10 'i=0; for (; i<10;i=i+1) {}  return i;'
 
-assert 55 'i=0; j=0; 
+assert 55 'i=0; j=0;
 for (i=0; i<=10; i=i+1) j=i+j;
 return j;'
 
