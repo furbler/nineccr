@@ -1,3 +1,4 @@
+#![warn(clippy::all, clippy::pedantic)]
 use std::env;
 
 mod codegen;
@@ -17,7 +18,7 @@ fn main() {
     //引数の文字列をトークナイズする
     let tokens = tokenize(&mut arg);
     //トークン列が空(入力が空)ならばエラー
-    if tokens.len() == 0 {
+    if tokens.is_empty() {
         panic!("入力がありません。プログラムを終了します。");
     }
     // トークン列から構文木を生成

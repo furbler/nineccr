@@ -1,5 +1,5 @@
 #!/bin/bash
-# オブジェクトファイルtmp2.oを作成
+# ヒアドキュメントの中身をgccに渡しコンパイルして、オブジェクトファイルtmp2.oを作成
 cat <<EOF | gcc -xc -c -o tmp2.o -
 int ret31() { return 31; }
 int ret5() { return 5; }
