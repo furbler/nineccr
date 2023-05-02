@@ -77,7 +77,7 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
                 };
                 // 各引数を評価
                 for arg in args {
-                    labelseq = gen(Some(arg), labelseq);
+                    labelseq = gen(Some(Box::new(arg)), labelseq);
                 }
                 if args_num >= 1 {
                     // 順番に注意

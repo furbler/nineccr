@@ -480,7 +480,7 @@ fn func_args(tokens: &Vec<Kind>, mut progress: usize, func_name: &str) -> (Node,
     let node;
     (node, progress) = assign(tokens, progress);
     // 引数のリストに追加
-    args.push(Box::new(node));
+    args.push(node);
 
     loop {
         match tokens.get(progress) {
@@ -505,7 +505,7 @@ fn func_args(tokens: &Vec<Kind>, mut progress: usize, func_name: &str) -> (Node,
         let node;
         (node, progress) = assign(tokens, progress);
         // 引数のリストに追加
-        args.push(Box::new(node));
+        args.push(node);
     }
 }
 
