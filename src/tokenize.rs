@@ -35,7 +35,7 @@ pub fn tokenize(arg: &mut str::Chars) -> Vec<Kind> {
     //イテレータで取り出されて未処理の文字
     let mut popped_char: Option<char> = None;
     while let Some(c) = {
-        if let Some(_) = popped_char {
+        if popped_char.is_some() {
             //popped_charに値があればその値を使う
             popped_char
         } else {
@@ -159,8 +159,7 @@ fn push_token(c: char, mut tokens: Vec<Kind>) -> Vec<Kind> {
         ';' => tokens.push(Kind::Semicolon),
         ',' => tokens.push(Kind::Comma),
         //空白と改行はスキップ（トークンを分ける区切り文字とする）
-        ' ' => (),
-        '\n' => (),
+        ' ' | '\n' => (),
         _ => panic!(
             "不正な文字\"{}\"が存在するため、プログラムを終了します。",
             c
@@ -174,7 +173,7 @@ fn continue_num(first_c: char, c_iter: &mut str::Chars) -> (Option<char>, Vec<ch
     let mut c_vec = vec![first_c];
     let mut ret_char: Option<char> = None;
     //数字以外の文字が出るまでループ
-    while let Some(c) = c_iter.next() {
+    for c in c_iter.by_ref() {
         if c.is_numeric() {
             //見つかった数字を追加
             c_vec.push(c);
@@ -191,7 +190,7 @@ fn continue_num(first_c: char, c_iter: &mut str::Chars) -> (Option<char>, Vec<ch
 fn continue_var(mut c_vec: Vec<char>, c_iter: &mut str::Chars) -> (Option<char>, Vec<char>) {
     let mut ret_char: Option<char> = None;
     //変数に使えない文字が出るまでループ
-    while let Some(c) = c_iter.next() {
+    for c in c_iter.by_ref() {
         if is_ident_char(c) || c.is_numeric() {
             //見つかった文字を追加
             c_vec.push(c);
@@ -263,10 +262,9 @@ fn ident_token(
         if c == '(' {
             // 関数名
             return (Some(c), Kind::FunCall(ident, None));
-        } else {
-            // 変数名
-            popped_char = Some(c);
         }
+        // 変数名
+        popped_char = Some(c);
     }
 
     (popped_char, Kind::Var(ident_list.find_ident_index(ident)))
@@ -276,8 +274,7 @@ fn ident_token(
 fn skip_nullity(mut popped_char: Option<char>, c_iter: &mut str::Chars) -> Option<char> {
     while let Some(c) = popped_char {
         match c {
-            ' ' => (),
-            '\n' => (),
+            ' ' | '\n' => (),
             _ => return Some(c),
         }
         popped_char = c_iter.next();
@@ -294,7 +291,7 @@ fn is_ident_char(c: char) -> bool {
 // 一文字目は変数に使える文字とする
 fn check_ident(compare_str: &str, c_iter: &mut str::Chars) -> (bool, (Option<char>, Vec<char>)) {
     //比較対象の文字列の1文字目
-    let mut c_vec = vec![compare_str.chars().nth(0).unwrap()];
+    let mut c_vec = vec![compare_str.chars().next().unwrap()];
     //イテレータで取り出して未処理の一文字
     let mut popped_char = None;
     //比較中の文字の位置(2文字目からスタート)
@@ -312,9 +309,8 @@ fn check_ident(compare_str: &str, c_iter: &mut str::Chars) -> (bool, (Option<cha
                 if is_ident_char(c) || c.is_numeric() {
                     c_vec.push(c);
                     return (false, continue_var(c_vec, c_iter));
-                } else {
-                    return (false, (popped_char, c_vec));
                 }
+                return (false, (popped_char, c_vec));
             }
         } else {
             // 比較文字列が終了した場合
@@ -322,11 +318,10 @@ fn check_ident(compare_str: &str, c_iter: &mut str::Chars) -> (bool, (Option<cha
                 //識別子の文字列の後に変数に使える文字が続いていた場合は通常の変数とみなす
                 c_vec.push(c);
                 return (false, continue_var(c_vec, c_iter));
-            } else {
-                //識別子の文字列の後に変数以外の文字があれば識別子であると判定する
-                //この場合、返り値の文字のベクタは利用されない(比較文字列と同じなので)
-                return (true, (Some(c), c_vec));
             }
+            //識別子の文字列の後に変数以外の文字があれば識別子であると判定する
+            //この場合、返り値の文字のベクタは利用されない(比較文字列と同じなので)
+            return (true, (Some(c), c_vec));
         }
     }
     //比較文字列の途中で先にイテレータが無くなった場合
