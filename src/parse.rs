@@ -11,7 +11,7 @@ pub fn program(tokens: &Vec<Kind>) -> Vec<Node> {
     let mut ret_node;
     //文単位で保存
     while progress < tokens.len() {
-        (ret_node, progress) = stmt(&tokens, progress);
+        (ret_node, progress) = stmt(tokens, progress);
         nodes.push(ret_node);
     }
     nodes
@@ -24,11 +24,12 @@ pub fn program(tokens: &Vec<Kind>) -> Vec<Node> {
 // | "if" "(" expr ")" stmt ("else" stmt)?
 // | "while" "(" expr ")" stmt
 // | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+#[allow(clippy::too_many_lines)]
 fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
     let mut node;
-    match tokens[progress] {
+    match tokens.get(progress) {
         // "return" expr ";"
-        Kind::Return => {
+        Some(Kind::Return) => {
             (node, progress) = expr(tokens, progress + 1);
             node = Node {
                 kind: Kind::Return,
@@ -41,12 +42,11 @@ fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
             }
             if let Kind::Semicolon = tokens[progress] {
                 return (node, progress + 1);
-            } else {
-                panic!("文の終わりに;が付いていません。プログラムを終了します。");
             }
+            panic!("文の終わりに;が付いていません。プログラムを終了します。");
         }
         // "{" stmt* "}"
-        Kind::CurlyBracOpen => {
+        Some(Kind::CurlyBracOpen) => {
             let mut node = Node {
                 // ここは他のノードのkindとかぶらなければ何でも良い
                 kind: Kind::CurlyBracOpen,
@@ -56,24 +56,23 @@ fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
                 rhs: None,
             };
             progress += 1;
-            // } が出てくるまで繰り返す
+            // 波括弧閉じが出てくるまで繰り返す
             loop {
                 let node_stmt;
                 if let Kind::CurlyBracClose = tokens[progress] {
                     return (node, progress + 1);
-                } else {
-                    (node_stmt, progress) = stmt(tokens, progress);
-                    node = Node {
-                        kind: Kind::CurlyBracOpen,
-                        lhs: Some(Box::new(node)),
-                        rhs: Some(Box::new(node_stmt)),
-                    };
                 }
+                (node_stmt, progress) = stmt(tokens, progress);
+                node = Node {
+                    kind: Kind::CurlyBracOpen,
+                    lhs: Some(Box::new(node)),
+                    rhs: Some(Box::new(node_stmt)),
+                };
             }
         }
 
         // "if" "(" expr ")" stmt ("else" stmt)?
-        Kind::If(_) => {
+        Some(Kind::If(_)) => {
             // 条件式
             let node_cond;
             // then式
@@ -109,10 +108,10 @@ fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
                 };
             }
             // 条件式が真ならlhsを、偽ならrhsを実行すべし
-            return (node, progress);
+            (node, progress)
         }
         // "while" "(" expr ")" stmt
-        Kind::While(_) => {
+        Some(Kind::While(_)) => {
             // 条件式
             let node_cond;
             // then式
@@ -136,10 +135,10 @@ fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
             };
 
             // 条件式が真ならlhsの処理をループ
-            return (node, progress);
+            (node, progress)
         }
         // "for" "(" expr? ";" expr? ";" expr? ")" stmt
-        Kind::For(..) => {
+        Some(Kind::For(..)) => {
             // 初期化式
             let node_init;
             // 条件式
@@ -153,7 +152,7 @@ fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
                 if let Kind::Semicolon = tokens[progress + 2] {
                     // 初期化式無し
                     node_init = None;
-                    progress = progress + 3;
+                    progress += 3;
                 } else {
                     // 初期化式
                     (node, progress) = expr(tokens, progress + 2);
@@ -171,7 +170,7 @@ fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
             if let Kind::Semicolon = tokens[progress] {
                 // 条件式無し（無条件ループ）
                 node_cond = None;
-                progress = progress + 1;
+                progress += 1;
             } else {
                 // 条件式
                 (node, progress) = expr(tokens, progress);
@@ -186,7 +185,7 @@ fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
             if let Kind::RoundBracClose = tokens[progress] {
                 // 変化式無し
                 node_inc = None;
-                progress = progress + 1;
+                progress += 1;
             } else {
                 // 変化式
                 (node, progress) = expr(tokens, progress);
@@ -205,7 +204,7 @@ fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
                 lhs: Some(Box::new(node_then)),
                 rhs: None,
             };
-            return (node, progress);
+            (node, progress)
         }
         // expr ";"
         _ => {
@@ -216,9 +215,8 @@ fn stmt(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
             }
             if let Kind::Semicolon = tokens[progress] {
                 return (node, progress + 1);
-            } else {
-                panic!("文の終わりに;が付いていません。プログラムを終了します。");
             }
+            panic!("文の終わりに;が付いていません。プログラムを終了します。");
         }
     }
 }
@@ -257,8 +255,8 @@ fn equality(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     let (mut node, mut progress) = relational(tokens, progress);
     //("==" relational | "!=" relational)*
     while progress < tokens.len() {
-        match tokens[progress] {
-            Kind::Equal => {
+        match tokens.get(progress) {
+            Some(Kind::Equal) => {
                 let rhs_node;
                 (rhs_node, progress) = relational(tokens, progress + 1);
                 node = Node {
@@ -267,7 +265,7 @@ fn equality(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
                     rhs: Some(Box::new(rhs_node)),
                 }
             }
-            Kind::NoEqual => {
+            Some(Kind::NoEqual) => {
                 let rhs_node;
                 (rhs_node, progress) = relational(tokens, progress + 1);
                 node = Node {
@@ -288,8 +286,8 @@ fn relational(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     let (mut node, mut progress) = add(tokens, progress);
     //("==" relational | "!=" relational)*
     while progress < tokens.len() {
-        match tokens[progress] {
-            Kind::LowThan => {
+        match tokens.get(progress) {
+            Some(Kind::LowThan) => {
                 let rhs_node;
                 (rhs_node, progress) = add(tokens, progress + 1);
                 node = Node {
@@ -298,7 +296,7 @@ fn relational(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
                     rhs: Some(Box::new(rhs_node)),
                 };
             }
-            Kind::LowEqual => {
+            Some(Kind::LowEqual) => {
                 let rhs_node;
                 (rhs_node, progress) = add(tokens, progress + 1);
                 node = Node {
@@ -307,7 +305,7 @@ fn relational(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
                     rhs: Some(Box::new(rhs_node)),
                 };
             }
-            Kind::HighThan => {
+            Some(Kind::HighThan) => {
                 let rhs_node;
                 (rhs_node, progress) = add(tokens, progress + 1);
                 node = Node {
@@ -317,7 +315,7 @@ fn relational(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
                     rhs: Some(Box::new(node)),
                 };
             }
-            Kind::HighEqual => {
+            Some(Kind::HighEqual) => {
                 let rhs_node;
                 (rhs_node, progress) = add(tokens, progress + 1);
                 node = Node {
@@ -339,8 +337,8 @@ fn add(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     let (mut node, mut progress) = mul(tokens, progress);
     //("+" mul | "-" mul)*
     while progress < tokens.len() {
-        match tokens[progress] {
-            Kind::Add => {
+        match tokens.get(progress) {
+            Some(Kind::Add) => {
                 let rhs_node;
                 (rhs_node, progress) = mul(tokens, progress + 1);
                 node = Node {
@@ -349,7 +347,7 @@ fn add(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
                     rhs: Some(Box::new(rhs_node)),
                 };
             }
-            Kind::Sub => {
+            Some(Kind::Sub) => {
                 let rhs_node;
                 (rhs_node, progress) = mul(tokens, progress + 1);
                 node = Node {
@@ -370,8 +368,8 @@ fn mul(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
     let (mut node, mut progress) = unary(tokens, progress);
     //("*" num | "/" num)*
     while progress < tokens.len() {
-        match tokens[progress] {
-            Kind::Mul => {
+        match tokens.get(progress) {
+            Some(Kind::Mul) => {
                 let rhs_node;
                 (rhs_node, progress) = unary(tokens, progress + 1);
                 node = Node {
@@ -380,7 +378,7 @@ fn mul(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
                     rhs: Some(Box::new(rhs_node)),
                 };
             }
-            Kind::Div => {
+            Some(Kind::Div) => {
                 let rhs_node;
                 (rhs_node, progress) = unary(tokens, progress + 1);
                 node = Node {
@@ -397,9 +395,9 @@ fn mul(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
 
 //unary   = ("+" | "-")? primary
 fn unary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
-    match tokens[progress] {
-        Kind::Add => primary(tokens, progress + 1),
-        Kind::Sub => {
+    match tokens.get(progress) {
+        Some(Kind::Add) => primary(tokens, progress + 1),
+        Some(Kind::Sub) => {
             let (rhs_node, progress) = primary(tokens, progress + 1);
             // 対応する0のノードを生成
             let zero_node = Node {
@@ -425,8 +423,8 @@ fn unary(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
 // | ident func-args?
 // | num
 fn primary(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
-    match tokens[progress] {
-        Kind::RoundBracOpen => {
+    match tokens.get(progress) {
+        Some(Kind::RoundBracOpen) => {
             //"(" expr ")"
             let (node, progress) = expr(tokens, progress + 1);
             if let Kind::RoundBracClose = tokens[progress] {
@@ -436,16 +434,16 @@ fn primary(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
             }
         }
         // ident
-        Kind::Var(index) => (
+        Some(Kind::Var(index)) => (
             Node {
-                kind: Kind::Var(index),
+                kind: Kind::Var(*index),
                 lhs: None,
                 rhs: None,
             },
             progress + 1,
         ),
         // ident "(" func-args? ")"
-        Kind::FunCall(ref func_name, _) => {
+        Some(Kind::FunCall(ref func_name, _)) => {
             progress += 1;
             if let Kind::RoundBracOpen = tokens[progress] {
                 if let Kind::RoundBracClose = tokens[progress + 1] {
@@ -460,14 +458,14 @@ fn primary(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
                     )
                 } else {
                     // 引数あり
-                    func_args(tokens, progress + 1, func_name.clone())
+                    func_args(tokens, progress + 1, func_name)
                 }
             } else {
                 panic!("関数名の後に括弧がありません。プログラムを終了します。")
             }
         }
         //num
-        Kind::Num(_) => expect_num(tokens, progress),
+        Some(Kind::Num(_)) => expect_num(tokens, progress),
         _ => panic!(
             "構文木の末端には変数か数値しか置けません。\nprogress = {}\nプログラムを終了します。",
             progress
@@ -476,7 +474,7 @@ fn primary(tokens: &Vec<Kind>, mut progress: usize) -> (Node, usize) {
 }
 
 // func-args =  (assign ("," assign)*)?
-fn func_args(tokens: &Vec<Kind>, mut progress: usize, func_name: String) -> (Node, usize) {
+fn func_args(tokens: &Vec<Kind>, mut progress: usize, func_name: &str) -> (Node, usize) {
     let mut args = Vec::new();
     // 引数の1つを評価
     let node;
@@ -485,16 +483,16 @@ fn func_args(tokens: &Vec<Kind>, mut progress: usize, func_name: String) -> (Nod
     args.push(Box::new(node));
 
     loop {
-        match tokens[progress] {
-            Kind::Comma => {
+        match tokens.get(progress) {
+            Some(Kind::Comma) => {
                 progress += 1;
             }
-            Kind::RoundBracClose => {
+            Some(Kind::RoundBracClose) => {
                 return (
                     Node {
                         kind: Kind::FunCall(
-                            func_name.clone(),
-                            if args.len() == 0 { None } else { Some(args) },
+                            func_name.to_string(),
+                            if args.is_empty() { None } else { Some(args) },
                         ),
                         lhs: None,
                         rhs: None,
@@ -513,7 +511,7 @@ fn func_args(tokens: &Vec<Kind>, mut progress: usize, func_name: String) -> (Nod
 
 //現在のトークンが数値であれば対応したノードを生成して返す
 //トークンが数値以外または存在しない場合はpanicさせる
-fn expect_num(tokens: &Vec<Kind>, progress: usize) -> (Node, usize) {
+fn expect_num(tokens: &[Kind], progress: usize) -> (Node, usize) {
     if let Kind::Num(ref numbers) = tokens[progress] {
         (
             Node {
