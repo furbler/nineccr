@@ -34,6 +34,7 @@ pub fn codegen(nodes: Vec<Node>) {
 }
 
 // 文の処理
+#[allow(clippy::too_many_lines)]
 fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
     let node = *node.unwrap();
     match node.kind {
@@ -41,20 +42,19 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
             print!("  push ");
             //数値を出力
             for number in numbers {
-                print!("{}", number);
+                print!("{number}");
             }
-            print!("\n");
+            println!();
             //構文木の末尾のノードなので関数終了
             return labelseq;
         }
         // {}の中
         Kind::CurlyBracOpen => {
-            if let None = node.lhs {
+            if node.lhs.is_none() {
                 return labelseq;
-            } else {
-                labelseq = gen(node.lhs, labelseq);
-                return gen(node.rhs, labelseq);
             }
+            labelseq = gen(node.lhs, labelseq);
+            return gen(node.rhs, labelseq);
         }
         Kind::Return => {
             labelseq = gen(node.lhs, labelseq);
@@ -67,23 +67,23 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
             let arg_register = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
             // 引数がある場合
             if let Some(args) = args {
-                let args_num: i32 = if args.len() > arg_register.len() {
+                let args_num: usize = if args.len() > arg_register.len() {
                     panic!(
                         "引数はレジスタの数である{}個以下にして下さい。プログラムを終了します。",
                         arg_register.len()
                     );
                 } else {
-                    args.len() as i32
+                    args.len()
                 };
                 // 各引数を評価
                 for arg in args {
                     labelseq = gen(Some(arg), labelseq);
                 }
-                let mut arg_cnt = args_num - 1;
-                while arg_cnt >= 0 {
+                if args_num >= 1 {
                     // 順番に注意
-                    println!("  pop {}", arg_register[arg_cnt as usize]);
-                    arg_cnt -= 1;
+                    for i in (0..args_num).rev() {
+                        println!("  pop {}", arg_register[i]);
+                    }
                 }
             }
             let seq = labelseq;
@@ -96,20 +96,20 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
             println!("  and rax, 15");
 
             // if (スタックポインタが16の倍数)
-            println!("  jnz .Lcall{}", seq);
+            println!("  jnz .Lcall{seq}");
             // {
             println!("  mov rax, 0");
-            println!("  call {}", func_name);
-            println!("  jmp .Lend{}", seq);
+            println!("  call {func_name}");
+            println!("  jmp .Lend{seq}",);
             // } else {
-            println!(".Lcall{}:", seq);
+            println!(".Lcall{seq}:");
             println!("  sub rsp, 8");
             println!("  mov rax, 0");
-            println!("  call {}", func_name);
+            println!("  call {func_name}");
             println!("  push rax");
             println!("  add rsp, 8");
             // }
-            println!(".Lend{}:", seq);
+            println!(".Lend{seq}:");
             println!(" push rax");
             return labelseq;
         }
@@ -118,30 +118,30 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
             let seq = labelseq;
             // ラベル番号更新
             labelseq += 1;
-            if let Some(_) = node.rhs {
+            if node.rhs.is_some() {
                 // else文がある場合
                 // 条件式
                 labelseq = gen(node_cond, labelseq);
                 println!("  pop rax");
                 println!("  cmp rax, 0");
-                println!("  je  .Lelse{}", seq);
+                println!("  je  .Lelse{seq}");
                 // then式
                 labelseq = gen(node.lhs, labelseq);
-                println!("  jmp .Lend{}", seq);
-                println!(".Lelse{}:", seq);
+                println!("  jmp .Lend{seq}");
+                println!(".Lelse{seq}:");
                 // else式
                 labelseq = gen(node.rhs, labelseq);
-                println!(".Lend{}:", seq);
+                println!(".Lend{seq}:");
             } else {
                 // else文がない場合(rhsがNoneの場合)
                 // 条件式
                 labelseq = gen(node_cond, labelseq);
                 println!("  pop rax");
                 println!("  cmp rax, 0");
-                println!("  je  .Lend{}", seq);
+                println!("  je  .Lend{seq}");
                 // then式
                 labelseq = gen(node.lhs, labelseq);
-                println!(".Lend{}:", seq);
+                println!(".Lend{seq}:");
             }
             return labelseq;
         }
@@ -150,16 +150,16 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
             let seq = labelseq;
             // ラベル番号更新
             labelseq += 1;
-            println!(".Lbegin{}:", seq);
+            println!(".Lbegin{seq}:");
             // 条件式
             labelseq = gen(node_cond, labelseq);
             println!("  pop rax");
             println!("  cmp rax, 0");
-            println!("  je  .Lend{}", seq);
+            println!("  je  .Lend{seq}");
             // then式
             labelseq = gen(node.lhs, labelseq);
-            println!("  jmp .Lbegin{}", seq);
-            println!(".Lend{}:", seq);
+            println!("  jmp .Lbegin{seq}");
+            println!(".Lend{seq}:");
             return labelseq;
         }
         Kind::For(node_init, node_cond, node_inc) => {
@@ -167,26 +167,26 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
             let seq = labelseq;
             // ラベル番号更新
             labelseq += 1;
-            if let Some(_) = node_init {
+            if node_init.is_some() {
                 // 存在すれば初期化処理
                 labelseq = gen(node_init, labelseq);
             }
-            println!(".Lbegin{}:", seq);
-            if let Some(_) = node_cond {
+            println!(".Lbegin{seq}:");
+            if node_cond.is_some() {
                 // 存在すれば条件式
                 labelseq = gen(node_cond, labelseq);
                 println!("  pop rax");
                 println!("  cmp rax, 0");
-                println!("  je  .Lend{}", seq);
+                println!("  je  .Lend{seq}");
             }
             // 条件式が真の場合のthen式
             labelseq = gen(node.lhs, labelseq);
-            if let Some(_) = node_inc {
+            if node_inc.is_some() {
                 // 存在すれば変化式
                 labelseq = gen(node_inc, labelseq);
             }
-            println!("  jmp .Lbegin{}", seq);
-            println!(".Lend{}:", seq);
+            println!("  jmp .Lbegin{seq}");
+            println!(".Lend{seq}:");
             return labelseq;
         }
 
@@ -213,9 +213,8 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
                 println!("  push rdi");
                 //代入式が終わったので関数終了
                 return labelseq;
-            } else {
-                panic!("式の左辺に変数以外があります。プログラムを終了します。");
             }
+            panic!("式の左辺に変数以外があります。プログラムを終了します。");
         }
         //ノードが上記に当てはまらない場合のみ以降の処理に進む
         _ => (),
@@ -257,7 +256,7 @@ fn gen(node: Option<Box<Node>>, mut labelseq: usize) -> usize {
         _ => panic!("不正なノードがあります。プログラムを終了します。"),
     }
     println!("  push rax");
-    return labelseq;
+    labelseq
 }
 
 //指定された変数のアドレスをスタックにプッシュする
